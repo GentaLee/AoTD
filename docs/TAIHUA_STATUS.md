@@ -2,6 +2,8 @@
 
 状态日期：2026-11-07（北京时间）。原始证据快照：2026-11-06 16:06 UTC。本文区分已经测得的结果、入口具备的功能和仍未完成的任务。
 
+代码审查：[GentaLee/AoTD PR #1](https://github.com/GentaLee/AoTD/pull/1)。持续进度：[XFDG/AoTD issue #1](https://github.com/XFDG/AoTD/issues/1)；目标仓库关闭了 issues，因此跟踪项保存在本次 fork。代码导入不代表下列全量验收项完成。
+
 **当前结论：全部教师模型和学生权重已落地 Taihua，教师前向、真实 Agent 制数小样本、四卡正式 batch 配置的短训练均通过。六源训练数据已有四源配齐；ANetQA、EgoQA 仍未完成。完整 CoT、全量学生训练与全量评测尚未完成，不能声称已复现论文指标。**
 
 本分支将此前工作目录中的工程改动迁入 `GentaLee/AoTD`，直接使用仓库根目录的 `agent_system/`、`distillation/` 和 `evaluation/`。基础提交是 `1a7aa98f7ad5763b754a745d7d145541186c7bd7`；原工程参考提交为 `zhengrongz/AoTD@1b64726431ac3da212b42176165940339f3f556b`，两者上述源码目录相同。
