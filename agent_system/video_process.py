@@ -2,6 +2,7 @@ import inspect
 import vision_models
 from configs import config
 import torch
+import os
 
 
 def make_fn(model_class, process_name, counter):
@@ -11,7 +12,7 @@ def make_fn(model_class, process_name, counter):
     """
     # We initialize each one on a separate GPU, to make sure there are no out of memory errors
     num_gpus = torch.cuda.device_count()
-    gpu_number = counter % num_gpus
+    gpu_number = counter % max(num_gpus, 1)
 
     model_instance = model_class(gpu_number=gpu_number)
 
@@ -40,6 +41,8 @@ def make_fn(model_class, process_name, counter):
             if model_class.to_batch:
                 out = out[0]
         except Exception as e:
+            if os.environ.get('AOTD_AGENT_STRICT') == '1':
+                raise
             print(f'Error in {process_name} model:', e)
             out = None
         return out

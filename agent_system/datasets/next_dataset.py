@@ -25,4 +25,6 @@ class NEXTDataset(Dataset):
         possible_answers = [qa_data['a0'], qa_data['a1'], qa_data['a2'], qa_data['a3'], qa_data['a4']]
         answer = chr(65 + int(answer))
 
-        return question, video_id, possible_answers, answer
+        return {'question_id': f"{video_id}_{qa_data['qid']}",
+                'question': question, 'video_id': video_id,
+                'possible_answers': possible_answers, 'answer': answer}

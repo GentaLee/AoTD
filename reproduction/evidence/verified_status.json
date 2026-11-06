@@ -1,0 +1,446 @@
+{
+  "snapshot_utc": "2026-11-06T16:06:06.596745+00:00",
+  "source_qa": {
+    "NExT-QA": {
+      "records": 34132,
+      "videos": 3870,
+      "missing_videos": 0,
+      "media_ready": true,
+      "annotation_sha256": "51ae6e611fa58835f63a0beb325fe647bb197c7e320a31f0bb7a9cf969e082b2",
+      "output_sha256": "497ef5a8f1cf95307f5cf60a2d7745b99c02bd1375f9dff52b5e438dc63da010"
+    },
+    "STAR": {
+      "records": 45731,
+      "videos": 45731,
+      "missing_videos": 0,
+      "media_ready": true,
+      "annotation_sha256": "9dc9b8fd6026154ea99cd76ae2975957dd787312d88bb35b9d42df674fc3e257",
+      "output_sha256": "c2e57f0b62e44fc063bb18da65a71d2c61eb0a868088292294006814058aecd1"
+    },
+    "AGQA": {
+      "records": 25000,
+      "videos": 5538,
+      "missing_videos": 0,
+      "media_ready": true,
+      "annotation_sha256": "cd6ac339a8a15a258e9642305e05be074171e0c2d2884c2e6bc0b4fa7f5fa576",
+      "output_sha256": "cd6ac339a8a15a258e9642305e05be074171e0c2d2884c2e6bc0b4fa7f5fa576"
+    },
+    "ANetQA": {
+      "enabled": false,
+      "reason": "explicitly excluded by current protocol"
+    },
+    "CLEVRER": {
+      "records": 21000,
+      "videos": 8877,
+      "missing_videos": 0,
+      "media_ready": true,
+      "annotation_sha256": "1efc5ee8c82ac4fca06fdb4b6abb2af8e7594dd254ca96f0263e3814bb8b1dfc",
+      "output_sha256": "1efc5ee8c82ac4fca06fdb4b6abb2af8e7594dd254ca96f0263e3814bb8b1dfc"
+    },
+    "EgoQA": {
+      "historical_ready": false,
+      "current_status_reference": "current_validation.json"
+    }
+  },
+  "original_author_sampling": false,
+  "full_training_completed": false,
+  "full_evaluation_completed": false,
+  "llama_functionality": {
+    "status": "PASS",
+    "fixture": "isolated functionality checks; not training labels or CoT",
+    "tests": {
+      "llama3": {
+        "status": "PASS",
+        "dtype": "torch.bfloat16",
+        "finite_logits": true,
+        "selected_answer": "A",
+        "seconds": 19.434490032028407
+      },
+      "llama31": {
+        "status": "PASS",
+        "transferred_rationale": "The cup is red because the visible cup is red, as indicated by the video summary.",
+        "filter_response": "False",
+        "accepted": false,
+        "positive_control": {
+          "filter_response": "True",
+          "accepted": true
+        },
+        "negative_control": {
+          "filter_response": "False",
+          "accepted": false
+        },
+        "seconds": 28.52199010993354
+      }
+    }
+  },
+  "real_agent_construction": {
+    "construct": {
+      "stage": "construct",
+      "saved": 4,
+      "newly_processed": 4,
+      "statuses": {
+        "ok": 3,
+        "rejected": 1
+      },
+      "target_records": 4,
+      "correct": 1,
+      "accepted": 0,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "transfer": {
+      "stage": "transfer",
+      "saved": 1,
+      "newly_processed": 1,
+      "statuses": {
+        "ok": 1
+      },
+      "target_records": 1,
+      "correct": 1,
+      "accepted": 0,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "filter": {
+      "stage": "filter",
+      "saved": 1,
+      "newly_processed": 1,
+      "statuses": {
+        "ok": 1
+      },
+      "target_records": 1,
+      "correct": 1,
+      "accepted": 1,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "status": "PASS",
+    "validation_only": true,
+    "real_train_questions": 4
+  },
+  "batch48_training": {
+    "status": "PASS",
+    "formal_batch": 48,
+    "training": {
+      "train_runtime": 27.923,
+      "train_samples_per_second": 3.438,
+      "train_steps_per_second": 0.072,
+      "total_flos": 1.871307050319872e+16,
+      "train_loss": 15.796875,
+      "epoch": 1.0,
+      "global_step": 2,
+      "finite_loss": true,
+      "step_losses": [
+        15.7559,
+        15.8379
+      ],
+      "runtime_backend": {
+        "distributed_type": "DistributedType.DEEPSPEED",
+        "model_class": "deepspeed.runtime.engine.DeepSpeedEngine",
+        "world_size": 4,
+        "zero_stage": 2,
+        "bfloat16_enabled": true,
+        "optimizer_class": "deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer"
+      },
+      "model_path": "$AOTD_ROOT/models/LLaVA-7B-base",
+      "data_yaml": "$AOTD_ROOT/results/validation_batch48_fixed_20261106T110440/validation.yaml",
+      "data_yaml_sha256": "5690a73e2232326c378dcaf2928dc58bb9429ff8bb0f7b7bdb25d5331b504d72",
+      "attn_implementation": "sdpa",
+      "optimizer": "adamw_torch",
+      "deepspeed": "$AOTD_ROOT/src/AoTD/distillation/configs/ds_config_zero2.json",
+      "world_size": 4,
+      "effective_batch_size": 48,
+      "loss_normalization": "trainer_per_microbatch_mean",
+      "model_accepts_loss_kwargs": false,
+      "training_scope": "smoke when max_steps is set; six-source author data is not bundled"
+    }
+  },
+  "public_teacher_components": {
+    "torch": "2.11.0a0+eb65b36914.nv26.02",
+    "cuda": "13.1",
+    "video_id": "3238737531",
+    "tests": {
+      "deepseek": {
+        "status": "PASS",
+        "load_seconds": 17.104379469063133,
+        "forward_seconds": 4.928577839978971,
+        "output": "def execute_command(video_clip, query, possible_answers):\n    children_count = len(Query_Objs(video_clip, \"child\"))\n    answer = select_answer(query, children_count, possible_answers)\n    return answer\n"
+      },
+      "llava": {
+        "status": "PASS",
+        "load_seconds": 16.535922551061958,
+        "forward_seconds": 1.0900053899968043,
+        "output": "three"
+      },
+      "owlv2": {
+        "status": "PASS",
+        "load_seconds": 1.6607101879781112,
+        "forward_seconds": 0.2683370230952278,
+        "output": []
+      },
+      "univtg": {
+        "status": "PASS",
+        "load_seconds": 1.7323899080511183,
+        "forward_seconds": 2.826283199014142,
+        "output": [
+          0,
+          14
+        ]
+      }
+    }
+  },
+  "local_llama_transfer_audit.json": {
+    "status": "PASS",
+    "files": 26,
+    "official_weight_sha256_match": true
+  },
+  "auxiliary_manifest.json": {
+    "complete": true,
+    "files": [
+      {
+        "path": "CLIP/ViT-B-32.pt",
+        "sha256": "40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af",
+        "bytes": 353976522,
+        "url": "https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt"
+      },
+      {
+        "path": "UniVTG/model_best.ckpt",
+        "sha256": "a424606712954c445d006754f49c8728870f76d274cf8f30dc6d37783586afff",
+        "bytes": 151708299,
+        "url": "https://drive.google.com/uc?id=1UXM01-lqBJGIWL1r6h0f96BfivNvDoTN"
+      },
+      {
+        "path": "UniVTG/opt.json",
+        "sha256": "e13845deec48462b793848d2b532be9a330aa812766799e1b359be7f8c9d1231",
+        "bytes": 2759,
+        "url": "https://drive.google.com/uc?id=12UEVdSQaOCztAkUdVYFitxnaoYj3oAFo"
+      }
+    ],
+    "univtg_official_folder": "https://drive.google.com/drive/folders/1-eGata6ZPV0A1BBsZpYyIooos9yjMx2f"
+  },
+  "download_manifest.json": {
+    "complete": true,
+    "files": [
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/generation_config.json",
+        "bytes": 119,
+        "sha256": "186a63b420f66a03e95a035c488373361bb04833a9b83f4bdbaba70c5c816002"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/config.json",
+        "bytes": 760,
+        "sha256": "a3a2ce1a623b367d3799fb0c1e1ba12d5b8fa51a8e7abba14d10dd3739cd73e4"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/model.safetensors.index.json",
+        "bytes": 25125,
+        "sha256": "3eda4168654ae3a887a91b8e12f7d933913b4895166f6b72d6c6f71b6b4d1c2a"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/tokenizer.json",
+        "bytes": 1367962,
+        "sha256": "ef48ebdc8546c2d8092349d321f1d162de804a1c8900df2b615c7dc8b02ce141"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/tokenizer_config.json",
+        "bytes": 1868,
+        "sha256": "775f116ff1130a5b5bfc3cfdb594f9fcb5a5dc61d5a11ba92b2a7c078d66b7b7"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/added_tokens.json",
+        "bytes": 67,
+        "sha256": "e5dc0da35d20111e8ff3fdfc03682beca23d5f94ed74331bce81786b2636a24f"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/config.json",
+        "bytes": 414,
+        "sha256": "ba9df8c25a4b8461887dd0a93d9252c9cd84697fe8d49a9d8794ce409af9acb2"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/merges.txt",
+        "bytes": 524619,
+        "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/preprocessor_config.json",
+        "bytes": 425,
+        "sha256": "cf3e396635b797ee1a464e1b2836e98748f8edac19e89aaa2c93b55ac15b0064"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/special_tokens_map.json",
+        "bytes": 121,
+        "sha256": "d6e2b9cf664efbad2d22998b8d3da986abcbeed3e0825ad33605c9401f9cf73e"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/tokenizer_config.json",
+        "bytes": 1100,
+        "sha256": "b55cda6198e152ded427c8a9b3faf1cccf27a7fa080697a62f6ff143f511f44f"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/vocab.json",
+        "bytes": 1059962,
+        "sha256": "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/added_tokens.json",
+        "bytes": 43,
+        "sha256": "406af3131433f4814b15d8affb6ae130b5be35be9983ee2670770b28b1891566"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/chat_template.json",
+        "bytes": 626,
+        "sha256": "dd930948989dffb432bd6a49f78d0ea344fd1ba939ae8f1256854a6ec9f1fd1e"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/config.json",
+        "bytes": 1414,
+        "sha256": "b0b2648174f64a3a0464f09532b52d0aaa03860227ee8eacfc92d2f213c821f3"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/generation_config.json",
+        "bytes": 137,
+        "sha256": "16a2ae86e6b883ce688e08aa30fb2901e62aba94aa9e244b74761850481d2558"
+      },
+      {
+        "repo": "google/owlv2-base-patch16-ensemble",
+        "revision": "cfd3195ba4ea9592eec887ded089f4c08eff231d",
+        "path": "models/teachers/OWLv2/model.safetensors",
+        "bytes": 619918824,
+        "sha256": "e1e130b9e404cf91a75ad45644c1da9d7fa5284085eecc864266a6923efb99e7"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/model-00002-of-00002.safetensors",
+        "bytes": 3502391696,
+        "sha256": "d4d48eb2dce70933437b29d3f39b10a8820d629f936554209578e8119d5f5b2f"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/model-00001-of-00003.safetensors",
+        "bytes": 4992938952,
+        "sha256": "0316bef937d8bb4d3d3671b6781b5bcbd39a976b096d53103f90a5d21e1f8a3c"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/model.safetensors.index.json",
+        "bytes": 70185,
+        "sha256": "9a47c4d8e2e79c25ff773072e8c3bc89f699a2e0d6556e734f0b19b90397dfc4"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/preprocessor_config.json",
+        "bytes": 741,
+        "sha256": "bfe304dbf539fa58e0dad17885419db1bd5696f90b5fd6c0ec6eceda63e85fa8"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/processor_config.json",
+        "bytes": 209,
+        "sha256": "6ff4f239aa04e73860b7c4373178d8d05c47a04821d17514255cb9982bfa1d9e"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/special_tokens_map.json",
+        "bytes": 552,
+        "sha256": "4859e5dbde90e059988a0a2136d8df3f2773d4d2fc4c4543690028f0b2166e7f"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/tokenizer.json",
+        "bytes": 1843172,
+        "sha256": "57a1cfaba34265f65b10969c968114d6725c8332b6909e5838a381f9cb8f82ab"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/tokenizer.model",
+        "bytes": 499723,
+        "sha256": "9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/tokenizer_config.json",
+        "bytes": 1506,
+        "sha256": "88cbc99986a179fb9e3c5b615eeb57a52ba5a5ef25727ec4e152da947a403a68"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/video_preprocessor_config.json",
+        "bytes": 1077,
+        "sha256": "5e09a18ccf08e2d006f9ff023273f85b347d91403b1544a44ae0e8c8ed4f7417"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/model-00002-of-00003.safetensors",
+        "bytes": 4957878552,
+        "sha256": "96eca8d796031c9cc2e7a6033ee5db07d154f025ee94d78fa9919567669f788c"
+      },
+      {
+        "repo": "llava-hf/LLaVA-NeXT-Video-7B-DPO-hf",
+        "revision": "f15ee7af0abdd85675ca947806dbefbb36a85d54",
+        "path": "models/teachers/LLaVA-Video-7B-DPO/model-00003-of-00003.safetensors",
+        "bytes": 4176137496,
+        "sha256": "e519e77f70193290c61df56dfb3af858b3a58a09782cec00991a192f318b0456"
+      },
+      {
+        "repo": "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "revision": "e5d64addd26a6a1db0f9b863abf6ee3141936807",
+        "path": "models/teachers/DeepSeek-Coder-6.7B-Instruct/model-00001-of-00002.safetensors",
+        "bytes": 9978667672,
+        "sha256": "ef55ffa04c8de3943c858cbcf7143b9803b3aa608337352ca5cd329f8a208bb6"
+      }
+    ]
+  },
+  "public_teacher_raw_path": "results/validation_public_agent_20261106T115829/public_agent_validation.json",
+  "full_val_preflight": {
+    "split": "val",
+    "eval_questions": 4996,
+    "eval_videos": 570,
+    "ready": true,
+    "missing_video_ids": []
+  },
+  "historical_validation": true,
+  "current_protocol": "five-source-valid-media-no-anetqa-v1"
+}

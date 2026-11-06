@@ -69,7 +69,7 @@ class Owlv2Model(BaseModel):
         else:
             model_path = "google/owlv2-base-patch16-ensemble"
         self.processor = Owlv2Processor.from_pretrained(model_path)
-        self.model = Owlv2ForObjectDetection.from_pretrained(model_path).cuda()
+        self.model = Owlv2ForObjectDetection.from_pretrained(model_path).to(self.dev)
         self.model.eval()
         self.model.requires_grad_(False)
         self.model = self.model.to(self.dev)
@@ -107,6 +107,7 @@ class DeepSeekModel(BaseModel):
     requires_gpu = True
 
     def __init__(self, gpu_number=0):
+        super().__init__(gpu_number)
         from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
         if config.deepseek['model_path']:
             model_path = config.deepseek['model_path']
@@ -115,7 +116,7 @@ class DeepSeekModel(BaseModel):
         with open(config.deepseek['prompt_path']) as f:
             self.base_prompt = f.read().strip()
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        self.pipeline = pipeline("text-generation", model=model_path, tokenizer=self.tokenizer, max_new_tokens=512, device_map="auto", torch_dtype=torch.bfloat16)
+        self.pipeline = pipeline("text-generation", model=model_path, tokenizer=self.tokenizer, max_new_tokens=512, device_map={"": self.dev}, torch_dtype=torch.bfloat16)
         self.tokenizer.pad_token = self.tokenizer.eos_token
             
     @torch.no_grad()
@@ -130,12 +131,9 @@ class DeepSeekModel(BaseModel):
         return result
     
     def forward_(self, extended_prompt, input_type="image"):
-        messages = [
-            {"role": "user", "content": "Only answer with a function starting def execute_command!!"},
-            {"role": "user", "content": extended_prompt}
-        ]
+        messages = [{"role": "user", "content": extended_prompt}]
         inputs = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-        outputs = self.pipeline(inputs,return_full_text=False)
+        outputs = self.pipeline(inputs, return_full_text=False, do_sample=False)
         response = outputs[0]['generated_text']
         response = response.replace(f"execute_command({input_type})", f"execute_command({input_type}, time_wait_between_lines, syntax)")
         return response
@@ -144,13 +142,17 @@ class UniVTGModel(BaseModel):
     name = 'univtg'
 
     def __init__(self, gpu_number=0):
+        super().__init__(gpu_number)
         from UniVTG.main.config import TestOptions, setup_model
         from UniVTG.utils.basic_utils import l2_normalize_np_array
         from UniVTG.run_on_video import clip 
         self.clip = clip
         self.l2_normalize_np_array = l2_normalize_np_array
         def load_model():
-            opt = TestOptions().parse(config.univtg)
+            options = dict(config.univtg)
+            options.update(gpu_id=int(self.dev.split(':')[-1]), local_rank=-1,
+                           eval_results_dir=config.univtg.save_dir)
+            opt = TestOptions().parse(options)
             # pdb.set_trace()
             cudnn.benchmark = True
             cudnn.deterministic = False
@@ -164,8 +166,8 @@ class UniVTGModel(BaseModel):
             return model
         model_version = "ViT-B/32"
         clip_len = 1
-        self.clip_model, _ = clip.load(model_version, device=gpu_number, jit=False)
-        self.vtg_model = load_model()
+        self.clip_model, _ = clip.load(config.univtg.get('clip_model_path', model_version), device=self.dev, jit=False)
+        self.vtg_model = load_model().to(self.dev)
         self.clip_device = next(self.clip_model.parameters()).device
         self.vtg_device = next(self.vtg_model.parameters()).device
 
@@ -283,6 +285,7 @@ class LLaVAVideoModel(BaseModel):
     name = 'llava'
 
     def __init__(self, gpu_number=0):
+        super().__init__(gpu_number)
         from transformers import LlavaNextVideoProcessor, LlavaNextVideoForConditionalGeneration
         # import ipdb; ipdb.set_trace()
         if config.llava['model_path']:
@@ -294,8 +297,8 @@ class LLaVAVideoModel(BaseModel):
         self.model = LlavaNextVideoForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch.bfloat16, 
-            device_map="auto",
-            attn_implementation="flash_attention_2",
+            device_map={"": self.dev},
+            attn_implementation="sdpa",
         )
 
     @torch.no_grad()
@@ -333,9 +336,10 @@ class LLaVAVideoModel(BaseModel):
 
         prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-        inputs_video = self.processor(text=prompt, videos=video_clip, padding=True, return_tensors="pt").to(self.model.device)
+        inputs_video = self.processor(text=prompt, videos=video_clip.cpu().numpy(), padding=True, return_tensors="pt").to(self.model.device)
+        inputs_video['pixel_values_videos'] = inputs_video['pixel_values_videos'].to(self.model.dtype)
 
-        generated_ids = self.model.generate(**inputs_video, max_new_tokens=100, do_sample=False, temperature=0.2)
+        generated_ids = self.model.generate(**inputs_video, max_new_tokens=100, do_sample=False)
 
         generated_ids_trimmed = [
             out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs_video.input_ids, generated_ids)
@@ -359,7 +363,7 @@ class LLaVAVideoModel(BaseModel):
             regex = f"[{valid_letters}]"
             uppercase_letters = re.findall(regex, output)
             if not uppercase_letters:
-                answer = random.choice(possible_answers)
+                raise ValueError(f'Video teacher did not return a valid option: {output!r}')
             else:
                 answer_letter = uppercase_letters[0]
                 index = valid_letters.index(answer_letter)
@@ -396,6 +400,7 @@ class LLaVAVideoModel(BaseModel):
 class LLaMAModel(BaseModel):
     name = 'llama'
     def __init__(self, gpu_number=0):
+        super().__init__(gpu_number)
         from transformers import pipeline
         from transformers import AutoTokenizer
         if config.llama['model_path']:
@@ -403,7 +408,7 @@ class LLaMAModel(BaseModel):
         else:
             model_path = "meta-llama/Meta-Llama-3-8B-Instruct"
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.pipe = pipeline("text-generation", model=model_path, tokenizer=self.tokenizer, max_new_tokens=500, device_map="auto", torch_dtype=torch.bfloat16, eos_token_id=self.tokenizer.eos_token_id, pad_token_id = self.tokenizer.eos_token_id)
+        self.pipe = pipeline("text-generation", model=model_path, tokenizer=self.tokenizer, max_new_tokens=500, device_map={"": self.dev}, torch_dtype=torch.bfloat16, eos_token_id=self.tokenizer.eos_token_id, pad_token_id = self.tokenizer.eos_token_id)
 
         self.terminators = [
             self.tokenizer.eos_token_id,
@@ -433,7 +438,7 @@ class LLaMAModel(BaseModel):
             {"role": "user", "content": prompt},
         ]
         inputs = self.tokenizer.apply_chat_template(extended_prompt, add_generation_prompt=True, tokenize=False)
-        outputs = self.pipe(inputs,return_full_text=False, eos_token_id=self.terminators)
+        outputs = self.pipe(inputs,return_full_text=False, eos_token_id=self.terminators, do_sample=False)
         response = outputs[-1]['generated_text']
         return response
     
@@ -444,7 +449,7 @@ class LLaMAModel(BaseModel):
             {"role": "user", "content": query},
         ]
         inputs = self.tokenizer.apply_chat_template(extended_prompt, add_generation_prompt=True, tokenize=False)
-        outputs = self.pipe(inputs,return_full_text=False, eos_token_id=self.terminators)
+        outputs = self.pipe(inputs,return_full_text=False, eos_token_id=self.terminators, do_sample=False)
         response = outputs[-1]['generated_text']
         return response
     
