@@ -1,0 +1,132 @@
+{
+  "snapshot_utc": "2026-11-06T16:46:50.357345+00:00",
+  "annotations_sha256": "61f0e2babf97a60ad23d05cc19019718b58fb1073b2e6bdbb5c3d0efbb09a5e3",
+  "annotated_records": 7813,
+  "annotated_videos": 7813,
+  "valid_videos": 7791,
+  "missing_videos": 16,
+  "invalid_videos": 6,
+  "exclusions": [
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_0.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_1.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_15.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_2.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_3.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_4.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_5.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_6.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_7.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_8.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "29790a18-69cb-4952-8fbf-644a91c4b747/split_9.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "85470aca-adad-4d1c-807a-5aece7cd7dd5/split_4.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "a448297b-ae62-4712-bc4f-849b39176558/split_4.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_0.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_1.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_2.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_3.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_4.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_5.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_6.mp4",
+      "status": "missing",
+      "reason": "file_not_found"
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_7.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    },
+    {
+      "video": "decd766d-bb93-4854-8918-24494922f321/split_8.mp4",
+      "status": "invalid",
+      "reason": "DECORDError",
+      "bytes": 262
+    }
+  ],
+  "decoder": "decord",
+  "frames_per_clip": 32,
+  "frame_indices": "linspace(0, len(video), 32, endpoint=False)",
+  "valid_video_names_sha256": "4f84104a158a8d019f337ce0ddba3635d673d780c00285f018aa73a88a588367",
+  "duration_seconds": 184.697
+}

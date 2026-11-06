@@ -1,0 +1,131 @@
+# 五源离线复现状态与运行说明
+
+状态日期：2026-11-07。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
+
+**当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、正式一轮训练和完整评测尚未完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
+
+## 1. 协议与数据范围
+
+配置由 [sources.json](../config/construction/sources.json) 驱动，协议 ID 为 `five-source-valid-media-no-anetqa-v1`。
+
+| 训练源 | QA 数 | 制作 CoT | 当前边界 |
+|---|---:|---|---|
+| NExT-QA train | 34,132 | 是 | 已归一化，3,870 视频，缺失 0 |
+| STAR train | 45,731 | 是 | 已归一化，16,206 个唯一时间窗覆盖全部问题，缺失 0 |
+| AGQA train | 25,000 | 是 | 确定性重建抽样，5,538 视频，缺失 0 |
+| CLEVRER train | 21,000 | 否 | 原生逐候选二分类标签，8,877 视频，缺失 0 |
+| EgoQA train | 7,791 | 否 | 原始 7,813 条中显式排除 16 条媒体缺失、6 条解码失败，其余全部通过 32 帧解码 |
+| 五源合计 | **133,654** | 三源需 CoT | 完整训练仍需合格 CoT |
+
+EgoQA 的媒体异常不是传输截断：原始归档大小与发布方 SHA256 一致，缺失 16 个精确路径；另外 6 个 MP4 各仅 262 字节，实际解码失败。已检查同源镜像及补充分片目录，未找到可验证的替代片段。采用[固定 22 条排除清单](../reproduction/metadata/egoqa_media_exclusions.json)，保留原生标注 SHA256、逐项原因与有效媒体名单哈希，并保存[完整解码审计](../reproduction/evidence/egoqa_media_decode_audit.json)。这是一项公开记录的数据协议变化，不是把缺失样本静默跳过，也没有使用其他片段代替。
+
+ANetQA 不再是默认配置的前置依赖，混入该来源或其他未启用来源的训练记录会被拒绝。完整 preflight 按各启用来源的最低真实 QA 覆盖检查，并检查 Instruct/AoTD 使用相同 QA 文件、CoT 只来自启用来源且能够匹配源 QA、媒体全部存在。不会沿用六源的固定总数门槛，也不会接受少量 smoke 记录作为全量输入。
+
+原作者完整处理后 QA/CoT、抽样 ID 与程序生成 few-shot 示例未公开，因此本工程采用明确标记的确定性重建。排除一个来源后更不能将本次结果称为原论文完整训练池的严格复现。
+
+NExT-QA 原标注存在同一个 `video_qid=3617262562_2` 对应不同问题的重复 ID，归一化保留两题并为第二题增加原始行号后缀。CLEVRER 某些问题有多个正确候选，采用原生逐候选 Yes/No 标签，不能强制转换成单个正确选项。
+
+## 2. 教师和学生权重
+
+**全部教师及辅助编码器均已齐备，且完成实际加载与前向验证。** 两份本地 Llama 均为 BF16，四个分片均与发布方 SHA256 对齐，目标侧再次校验通过。历史下载权限错误不再是模型推理阻塞。
+
+| 角色 | 相对路径 | 公开来源 |
+|---|---|---|
+| 程序规划 | `models/teachers/DeepSeek-Coder-6.7B-Instruct` | [DeepSeek](https://huggingface.co/deepseek-ai/deepseek-coder-6.7b-instruct) |
+| 视频专家 | `models/teachers/LLaVA-Video-7B-DPO` | [LLaVA DPO](https://huggingface.co/llava-hf/LLaVA-NeXT-Video-7B-DPO-hf) |
+| 开放词汇检测 | `models/teachers/OWLv2` | [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) |
+| 时间定位 | `models/teachers/UniVTG` | [官方模型目录](https://drive.google.com/drive/folders/1-eGata6ZPV0A1BBsZpYyIooos9yjMx2f) |
+| 时间定位视觉编码器 | `models/teachers/CLIP` | [ViT-B/32 权重](https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt) |
+| 答案选择 | `models/teachers/Meta-Llama-3-8B-Instruct` | [Llama 3](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) |
+| 轨迹转换与解释筛选 | `models/teachers/Llama-3.1-8B-Instruct` | [Llama 3.1](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) |
+| 学生 Base | `models/LLaVA-7B-base` | [LLaVA Base](https://huggingface.co/llava-hf/LLaVA-NeXT-Video-7B-hf) |
+| 作者发布模型 | `models/AoTD-7B-author` | [AoTD-7B](https://huggingface.co/Zhengrongzz/AoTD-7B) |
+
+来源 revision、文件大小及哈希记录在[验证快照](../reproduction/evidence/verified_status.json)和[Llama 发布方清单](../reproduction/metadata/llama_publisher_hashes.json)。不在 Git 中分发模型二进制。
+
+## 3. 当前实测与证据
+
+已验证的软件环境包括 PyTorch `2.11.0a0+eb65b36914.nv26.02`、CUDA `13.1`、Transformers `4.49.0`、DeepSpeed `0.15.4`、NumPy `1.26.4`，使用 BF16/SDPA。版本记录不意味着所有其他镜像组合都已验证。
+
+| 验证 | 已测结果 | 适用边界 |
+|---|---|---|
+| 教师前向 | 程序生成、视频问答、目标检测、时间定位、答案选择、转换和筛选均通过 | 有限小样本功能验证 |
+| 真实 Agent 链路 | 4 道 train QA：3 次程序执行成功、1 次非代码回复被拒；1 条答对并完成转换、筛选和 CoT 导出 | 不是全量准确率或合格率 |
+| 正式 batch 配置短训练 | 4 卡、microbatch 1、累积 12、有效 batch 48、ZeRO-2、BF16；2 步 loss `15.7559` / `15.8379`，有限梯度 | 96 条受控重复 QA，只验证训练配置 |
+| 作者权重和保存重载 | 作者评测 2 题；短训练后保存 checkpoint/processor，重载评测 1 题，通过 | 不是完整评测指标 |
+| 保活恢复 | 最终 smoke、注入错误退出 23、SIGTERM 退出 143、SIGKILL watchdog 路径均通过；原 8 个相同 PID 恢复、重复进程 0 | 受测范围内 OOM 计数增量 0；整体节点退出不在脚本恢复范围 |
+| 完整评测输入检查 | val 4,996 问题、570 视频的输入覆盖检查通过 | 尚无完整推理分数 |
+| 新布局回归 | 两个独立环境的 10 项原始回归通过；五源覆盖、排除来源、时间节流和最终即时输出行为检查通过 | 最终进度版本已重新执行实际训练、评测和保存重载 smoke |
+
+[历史证据字段](../reproduction/evidence/verified_status.json)、[仓库布局检查](../reproduction/evidence/repository_integration.json)随代码保存。最终复测与异常恢复记录保存在 `reproduction/evidence/current_validation.json`，仅实际完成的项目标记 PASS。原始逐题日志、轨迹、训练数值和进程审计保留在挂载卷，公开证据只导出不含站点信息的必要字段。
+
+训练修正保留原版 padding-only label collator 的监督范围，未暗中改成 answer-only loss。设置 `model.accepts_loss_kwargs=False`，避免 Transformers 对 `**kwargs` 的能力推断导致 microbatch mean CE 在累积时缩放错误；同时记录真实运行引擎、world size、ZeRO stage、有效 batch 和逐步数值。
+
+## 4. full 一键入口
+
+在已经配好资源的持久化 checkout 中运行：
+
+```bash
+bash run_aotd_full.sh
+```
+
+完整流程依次为：
+
+1. 若缺少正式训练记录，先检查五源标注与媒体，再按配置对 NExT-QA、STAR、AGQA 执行真实 Agent 程序、视觉工具、正确答案门控、轨迹转换与解释筛选；CLEVRER/EgoQA 提供原生 QA。
+2. 导出完整五源 QA/CoT，生成 Instruct/AoTD YAML，检查来源覆盖、唯一 ID、匹配关系和全部媒体。缺失资源或没有合格 CoT 会中止，不会制造训练标签。
+3. Instruct（QA-only）与 AoTD（QA+CoT）分别从相同 Base 独立初始化，各训练完整 1 epoch，默认 seed 42、4 张工作卡、microbatch 1、梯度累积 12、有效 batch 48、ZeRO-2、BF16/SDPA。没有 smoke 的步数/样本上限。
+4. 对作者/Base/Instruct/AoTD 分别评测完整 NExT-QA val 4,996 题。设置 `AOTD_EVAL_SPLIT=test` 可改为 8,564 题，但需要对应媒体全部齐备，不得混报两种划分。
+5. 完整覆盖每组评测问题后才生成最终 `full_summary.json`。
+
+只检查资源：`bash run_aotd_full.sh --check`。只做作者/Base 完整评测：`bash run_aotd_full.sh --eval-only`，该模式不会训练自己的 Instruct/AoTD。
+
+制数可单独运行 `bash run_aotd_build_data.sh`，检查模式为 `--check`。指定 `--dataset NExT-QA` 可先运行单源，但默认 full 仍要求全部五源覆盖，不能把单源制数当作全量复现。
+
+## 5. GPU 保活、进度与中断
+
+训练和程序构建默认使用 4 张工作卡，其余 4 张卡运行保活；单卡转换、筛选和评测时为 1 张工作卡加 7 张保活卡。保活只是运行保障，不能将四卡训练报告为八卡训练。
+
+原保活进程树由 guard 暂停和恢复，独立 watchdog 处理父进程异常；正常退出、错误与可处理信号退出都应恢复原保活。进程被系统强制终止后的恢复依赖 watchdog 仍在运行，宿主机/容器整体退出不能由同容器脚本保证恢复。
+
+默认 `AOTD_PROGRESS_INTERVAL_SECONDS=30`，允许 10–60 秒。阶段完成立即输出，不必等下个间隔。训练展示 step、总步数、百分比、已用时间、预计剩余时间和 loss；评测展示题目进度与预计剩余时间。逐步数值、逐题 JSONL 和失败信息完整保留。默认不逐题、逐 token 刷屏，`AOTD_VERBOSE=1` 可查看评测细节。
+
+制数 JSONL 逐条落盘，可恢复中断尾部并按输入、提示词、代码和模型指纹检查兼容性。重跑同阶段会续接合格记录，不能混用旧指纹轨迹。**学生训练入口不承诺自动从任意中断 checkpoint 续训**，重新 full 会建立新运行目录。
+
+## 6. 目录、配置与结果
+
+| 相对位置 | 用途 |
+|---|---|
+| `runtime/site.env` | 站点专属环境变量，不提交 Git |
+| `models/`、`data/`、`downloads/` | 模型、媒体与离线依赖，全部保存在挂载卷 |
+| `data/construction/` | 逐源归一化 QA、Agent 轨迹、转换与筛选记录 |
+| `data/five_source_sources/` | 合并后的五源 QA/CoT 和来源 provenance |
+| `data/five_source_train/` | 正式训练 JSON、manifest、Instruct/AoTD YAML |
+| `results/full_<UTC时间>_<PID>/` | `run.log`、两组 checkpoint、逐题 JSONL/JSON、最终统计 |
+| `results/build_<UTC时间>_<PID>/` | 制数阶段运行日志与状态 |
+
+站点配置示意：
+
+```bash
+# 写入不提交 Git 的 runtime/site.env，并替换为本地持久化路径
+export AOTD_KEEPALIVE_SCRIPT=/absolute/persistent/path/to/keep_alive/main.py
+export AOTD_PROGRESS_INTERVAL_SECONDS=30
+```
+
+已有离线资源通过 `bash use_local_assets.sh /absolute/path/to/bundle --reuse-env` 关联。仅在兼容的同节点环境中复用 env；新环境通过 `setup_offline.sh` 与 `setup_agent_offline.sh` 安装本地 wheel。跨主机同步需要外部设置 `AOTD_WORKER_HOST`、`AOTD_WORKER_ROOT`，必要时设置 `AOTD_WORKER_PLATFORM_PYTHON`，再运行 `sync_to_worker.sh`。所有新增运行数据、缓存与临时文件都应位于持久化挂载卷。
+
+程序运行不写 Markdown 进度日志，本文是供审查的状态说明。凭证必须位于仓库外的私有目录，不能上传到 issue、PR、日志或下载清单。
+
+## 7. 数据公开入口与后续验收
+
+[NExT-QA](https://github.com/doc-doc/NExT-QA)、[STAR](https://github.com/csbobby/STAR_Benchmark)、[AGQA](https://cs.stanford.edu/people/ranjaykrishna/agqa/)、[Charades](https://prior.allenai.org/projects/charades)、[CLEVRER](https://clevrer.csail.mit.edu/)。EgoQA 候选视频来自 [VideoChat2 视频包](https://huggingface.co/datasets/ynhe/videochat2_data/blob/main/egoqa_split_videos.zip)，配套 [EgoQA 标注目录](https://huggingface.co/datasets/OpenGVLab/VideoChat2-IT/tree/main/video/vqa/ego_qa)可能需要数据集访问权限。来源相似不代表样本逐条等于作者抽样，必须保留实际归一化和媒体审计。
+
+- [x] EgoQA 原始 7,813 条全部完成 32 帧解码审计，16 条缺失与 6 条无效媒体按固定清单排除，保留 7,791 条。
+- [x] 五源统一制数输入检查通过：133,654 条有效 QA，媒体缺失 0，教师依赖检查通过。
+- [x] 最终进度输出版本的训练/评测 smoke、真实 Agent 链路通过；错误、SIGTERM、SIGKILL watchdog 路径恢复原 8 个保活进程。
+- [ ] 三个启用 CoT 的来源完成完整 Agent→转换→筛选，记录成功、拒绝、错误及合格数。
+- [ ] Instruct/AoTD 各训练完整 1 epoch，记录步数、loss、资源峰值和 checkpoint。
+- [ ] 作者/Base/Instruct/AoTD 同一完整划分评测，报告逐题及分组指标。
+
+完整耗时尚未实测，不将两步短训练或四题 Agent 的速度直接外推为全量承诺。应在长阶段运行后，依据实际工具调用次数、视频长度、合格 CoT 数和吞吐更新估计。
+
+本工程沿用 [AoTD](https://github.com/zhengrongz/AoTD)的研究任务；模型和数据分别遵循其发布方许可证，本仓库不重新分发这些大体积资源。

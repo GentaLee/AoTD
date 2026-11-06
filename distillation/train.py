@@ -1,11 +1,19 @@
+import argparse
+import hashlib
+import json
+import math
+import os
+import time
+from pathlib import Path
+
 import numpy as np
-from transformers import Trainer, TrainingArguments, Seq2SeqTrainingArguments, DataCollatorForLanguageModeling
-from transformers import AutoProcessor, BitsAndBytesConfig, LlavaNextVideoForConditionalGeneration, LlavaNextVideoConfig
+from transformers import Trainer, TrainerCallback, TrainingArguments
+from transformers.trainer_callback import PrinterCallback
+from transformers import AutoProcessor, LlavaNextVideoForConditionalGeneration
 
 
 import torch
 from datasets import load_dataset, concatenate_datasets
-from tqdm import *
 from decord import VideoReader, gpu, cpu
 import yaml
 
@@ -64,7 +72,7 @@ class LlavaNextVideoDataCollatorWithPadding:
 
         return padded_inputs
 
-def build_dataset(data_path):
+def build_dataset(data_path, seed=42):
     dataset_combined = []
 
     with open(data_path, "r") as file:
@@ -77,7 +85,7 @@ def build_dataset(data_path):
         dataset_combined.append(dataset['train'])
     
     dataset_processed = concatenate_datasets(dataset_combined)
-    dataset_processed = dataset_processed.shuffle(seed=42)
+    dataset_processed = dataset_processed.shuffle(seed=seed)
 
     train_dataset = dataset_processed.with_format("torch")
 
@@ -85,18 +93,37 @@ def build_dataset(data_path):
 
 
 def parse_args():
+    parser = argparse.ArgumentParser(description="AoTD student distillation")
+    parser.add_argument("--model_path", required=True)
+    parser.add_argument("--data_yaml", required=True)
+    parser.add_argument("--output_dir", required=True)
+    parser.add_argument("--deepspeed", default=None)
+    parser.add_argument("--optim", default="adamw_torch")
+    parser.add_argument("--attn_implementation", default="sdpa",
+                        choices=("sdpa", "eager", "flash_attention_2"))
+    parser.add_argument("--per_device_train_batch_size", type=int, default=BATCH_SIZE)
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
+    parser.add_argument("--max_steps", type=int, default=-1)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dataloader_num_workers", type=int, default=0)
+    parser.add_argument("--save_strategy", default="epoch", choices=("no", "steps", "epoch"))
+    parser.add_argument("--save_steps", type=int, default=500)
+    parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
+    cli = parser.parse_args()
     args = TrainingArguments(
 
         # args related to training
-        output_dir = OUTPUT_DIR,
+        output_dir = cli.output_dir,
         # dataloader_drop_last=True,
         do_eval=False,
-        evaluation_strategy="no",
-        eval_strategy = 'steps',
-        eval_steps=20,
-        per_device_train_batch_size = BATCH_SIZE,
+        eval_strategy = 'no',
+        per_device_train_batch_size = cli.per_device_train_batch_size,
         per_device_eval_batch_size = BATCH_SIZE,
-        gradient_accumulation_steps = 1,
+        gradient_accumulation_steps = cli.gradient_accumulation_steps,
+        max_steps = cli.max_steps,
+        seed = cli.seed,
+        deepspeed = cli.deepspeed,
+        local_rank = cli.local_rank,
         learning_rate = 4e-05,
         num_train_epochs=1, # adjust this depending on your dataset size
         lr_scheduler_type = 'cosine',
@@ -105,45 +132,134 @@ def parse_args():
 
         # args related to eval/save
         logging_steps = 1,
-        save_strategy = 'epoch',
+        disable_tqdm = True,
+        logging_nan_inf_filter = False,
+        save_strategy = cli.save_strategy,
+        save_steps = cli.save_steps,
         # save_steps=1000,
         save_total_limit = 1,
         fp16 = False, # we have the model train and eval with fp16 precision
         bf16=True,
         tf32=True,
-        fp16_full_eval = True,
-        optim = 'adamw_bnb_8bit', # adam in lower-bits to save memory, consider changing to 'adamw_torch' if model is not converging
+        fp16_full_eval = False,
+        optim = cli.optim,
         report_to = "none", # install wand to use this
         hub_model_id = REPO_ID,
         push_to_hub = False, # wel'll push the model to hub after each epoch
         label_names=["labels"],
-        dataloader_num_workers=2, # let's get more workers since iterating on video datasets might be slower in general
+        dataloader_num_workers=cli.dataloader_num_workers,
         gradient_checkpointing=True,
         neftune_noise_alpha=0.1
     )
 
-    return args
+    return cli, args
+
+
+class TrainingProgress(TrainerCallback):
+    """Expose step loss and include the processor in Trainer checkpoints."""
+    def __init__(self, processor):
+        self.processor = processor
+        self.losses = []
+        self.trainer = None
+        self.runtime_backend = None
+        self.numeric_logs = []
+        interval = float(os.environ.get('AOTD_PROGRESS_INTERVAL_SECONDS', '30'))
+        if not math.isfinite(interval):
+            raise ValueError('AOTD_PROGRESS_INTERVAL_SECONDS must be finite')
+        self.interval = max(10.0, min(60.0, interval))
+        self.started = None
+        self.last_progress = None
+
+    def print_progress(self, state, force=False):
+        if not state.is_world_process_zero:
+            return
+        now = time.monotonic()
+        if not force and now - self.last_progress < self.interval:
+            return
+        elapsed = now - self.started
+        step, total = state.global_step, max(state.max_steps, 1)
+        eta = elapsed / step * max(total-step, 0) if step else None
+        loss = f'{self.losses[-1]:.6f}' if self.losses else 'pending'
+        remaining = f'{eta:.1f}s' if eta is not None else 'pending'
+        print(f'[train progress] step={step}/{total} percent={100*step/total:.1f}% '
+              f'elapsed={elapsed:.1f}s estimated_remaining={remaining} loss={loss}', flush=True)
+        self.last_progress = now
+
+    def on_train_end(self, args, state, control, **kwargs):
+        self.print_progress(state, force=True)
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        # Callback kwargs expose Trainer.model (the unwrapped HF model). Inspect
+        # model_wrapped after accelerator.prepare to audit the actual engine.
+        self.started = self.last_progress = time.monotonic()
+        trainer = self.trainer
+        engine = trainer.model_wrapped
+        self.runtime_backend = {
+            "distributed_type": str(trainer.accelerator.distributed_type),
+            "model_class": f"{type(engine).__module__}.{type(engine).__qualname__}",
+            "world_size": args.world_size,
+        }
+        if args.deepspeed:
+            from deepspeed import DeepSpeedEngine
+            if not isinstance(engine, DeepSpeedEngine):
+                raise RuntimeError(f"DeepSpeed requested but actual model is {type(engine)!r}")
+            self.runtime_backend.update({
+                "zero_stage": int(engine.zero_optimization_stage()),
+                "bfloat16_enabled": bool(engine.bfloat16_enabled()),
+                "world_size": int(engine.world_size),
+                "optimizer_class": f"{type(engine.optimizer).__module__}.{type(engine.optimizer).__qualname__}",
+            })
+        if state.is_world_process_zero:
+            print("[train backend] " + json.dumps(self.runtime_backend, sort_keys=True), flush=True)
+            self.print_progress(state, force=True)
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return
+        numeric = {key: float(value) for key, value in logs.items()
+                   if isinstance(value, (int, float)) and not isinstance(value, bool)}
+        self.numeric_logs.append(dict(step=state.global_step, metrics=numeric))
+        if "loss" in logs:
+            loss = float(logs["loss"])
+            self.losses.append(loss)
+            if not math.isfinite(loss):
+                raise FloatingPointError(f"Non-finite loss at step {state.global_step}: {loss}")
+            if "grad_norm" in numeric and not math.isfinite(numeric["grad_norm"]):
+                raise FloatingPointError(f"Non-finite gradient norm at step {state.global_step}")
+        self.print_progress(state)
+
+    def on_save(self, args, state, control, **kwargs):
+        if state.is_world_process_zero:
+            self.processor.save_pretrained(Path(args.output_dir) / f"checkpoint-{state.global_step}")
 
 
 
 
 
 def main():
-    args = parse_args()
-    processor = AutoProcessor.from_pretrained(MODEL_ID, use_fast=False)
+    cli, args = parse_args()
+    processor = AutoProcessor.from_pretrained(cli.model_path, use_fast=False, local_files_only=True)
     processor.tokenizer.padding_side = "right"
 
     model = LlavaNextVideoForConditionalGeneration.from_pretrained(
-        MODEL_ID,
+        cli.model_path,
         torch_dtype=torch.bfloat16,
-        _attn_implementation="flash_attention_2",
+        attn_implementation=cli.attn_implementation,
+        local_files_only=True,
     )
     model.config.use_cache = False
+    # Transformers 4.49 detects **lm_kwargs on LlavaNextVideo.forward and
+    # assumes num_items_in_batch normalizes its loss. This model instead uses
+    # its own mean CrossEntropyLoss and ignores that token-count argument.
+    # Let Trainer divide each microbatch loss by gradient_accumulation_steps;
+    # DeepSpeed is already called with scale_wrt_gas=False by Trainer.
+    model.accepts_loss_kwargs = False
     for k, v in model.named_parameters():
         if "vision_tower" in k or 'image_newline' in k:
             v.requires_grad = False
 
-    train_dataset = build_dataset(DATA_PATH)
+    train_dataset = build_dataset(cli.data_yaml, seed=cli.seed)
+    progress = TrainingProgress(processor)
 
 
     trainer = Trainer(
@@ -152,9 +268,46 @@ def main():
         data_collator = LlavaNextVideoDataCollatorWithPadding(processor=processor),
         train_dataset = train_dataset,
         args=args,
+        callbacks=[progress],
     )
+    trainer.remove_callback(PrinterCallback)
+    progress.trainer = trainer
 
-    trainer.train()
+    result = trainer.train()
+    loss = float(result.metrics["train_loss"])
+    if not progress.losses or not math.isfinite(loss):
+        raise FloatingPointError(f"Training did not report finite losses: train_loss={loss}")
+    if trainer.is_world_process_zero():
+        print(f"[train] saving full model and processor to {args.output_dir}", flush=True)
+    trainer.save_model(args.output_dir)
+    trainer.save_state()
+    trainer.save_metrics("train", result.metrics)
+    if trainer.is_world_process_zero():
+        processor.save_pretrained(args.output_dir)
+        metrics = {
+            **result.metrics,
+            "global_step": trainer.state.global_step,
+            "finite_loss": all(math.isfinite(value) for value in progress.losses),
+            "step_losses": progress.losses,
+            "numeric_logs": progress.numeric_logs,
+            "progress_interval_seconds": progress.interval,
+            "runtime_backend": progress.runtime_backend,
+            "model_path": cli.model_path,
+            "data_yaml": cli.data_yaml,
+            "data_yaml_sha256": hashlib.sha256(Path(cli.data_yaml).read_bytes()).hexdigest(),
+            "attn_implementation": cli.attn_implementation,
+            "optimizer": cli.optim,
+            "deepspeed": cli.deepspeed,
+            "world_size": args.world_size,
+            "effective_batch_size": (args.per_device_train_batch_size *
+                                     args.gradient_accumulation_steps * args.world_size),
+            "loss_normalization": "trainer_per_microbatch_mean",
+            "model_accepts_loss_kwargs": trainer.model_accepts_loss_kwargs,
+            "training_scope": "smoke when max_steps is set; selected-source full training otherwise",
+        }
+        with (Path(args.output_dir) / "training_metrics.json").open("w") as handle:
+            json.dump(metrics, handle, indent=2, allow_nan=False)
+        print(f"[train] complete: {trainer.state.global_step} steps, finite loss; saved {args.output_dir}", flush=True)
 
 
 if __name__ == "__main__":

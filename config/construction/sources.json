@@ -1,0 +1,57 @@
+{
+  "protocol": "Five-source engineering reconstruction excluding ANetQA; exact author sampling IDs and few-shot prompts were not released",
+  "sources": [
+    {
+      "dataset": "NExT-QA",
+      "annotations": "data/nextqa/train.csv",
+      "media": "data/construction/media/NExT-QA",
+      "cot": true,
+      "paper_qa_approx": 34100,
+      "origin": "https://github.com/doc-doc/NExT-QA/tree/2432e9724f88ed9f40010e2989f104570a91de4e/dataset/nextqa",
+      "minimum_qa_records": 34132
+    },
+    {
+      "dataset": "STAR",
+      "annotations": "data/raw/STAR/STAR_train.json",
+      "media": "data/construction/media/STAR",
+      "cot": true,
+      "paper_qa_approx": 45700,
+      "origin": "https://github.com/csbobby/STAR_Benchmark",
+      "minimum_qa_records": 45731
+    },
+    {
+      "dataset": "AGQA",
+      "annotations": "data/raw/AGQA/train_normalized.jsonl",
+      "media": "data/construction/media/AGQA",
+      "cot": true,
+      "paper_qa_approx": 25000,
+      "origin": "https://cs.stanford.edu/people/ranjaykrishna/agqa/",
+      "minimum_qa_records": 25000
+    },
+    {
+      "dataset": "CLEVRER",
+      "annotations": "data/raw/CLEVRER/train_normalized.jsonl",
+      "media": "data/construction/media/CLEVRER",
+      "cot": false,
+      "paper_qa_approx": 21000,
+      "origin": "https://clevrer.csail.mit.edu/",
+      "minimum_qa_records": 21000
+    },
+    {
+      "dataset": "EgoQA",
+      "exclusions_manifest": "reproduction/metadata/egoqa_media_exclusions.json",
+      "annotations": "data/raw/EgoQA/train_normalized.jsonl",
+      "media": "data/construction/media/EgoQA",
+      "cot": false,
+      "paper_qa_approx": 7800,
+      "origin": "https://arxiv.org/html/2412.01694v2",
+      "minimum_qa_records": 7791,
+      "original_qa_records": 7813,
+      "excluded_media_records": 22
+    }
+  ],
+  "protocol_id": "five-source-valid-media-no-anetqa-v1",
+  "excluded_sources": [
+    "ANetQA"
+  ]
+}

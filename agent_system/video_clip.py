@@ -165,10 +165,10 @@ def Filter_frames_with_obj(video_clip, obj):
         if len(obj_bboxes) == 0:
             continue
         else:
-            frame_list.append(frame.permute(1,2,0))
-            if len(frame_list) == 0:
+            if new_start is None:
                 new_start = i
-            new_end = i
+            frame_list.append(frame.permute(1,2,0))
+            new_end = i + 1
     if frame_list == []:
         result = video_clip
     else:
@@ -241,6 +241,8 @@ def Find(video_clip, obj):
     return new_clip
 
 def select_answer(query, info, possible_answers):
+    if not isinstance(info, dict):
+        info = {'observations': info}
     def format_dict(x):
         if isinstance(x, dict):
             x = ''.join([f'\n\t- {k}: {format_dict(v)}' for k, v in x.items()])
@@ -250,9 +252,11 @@ def select_answer(query, info, possible_answers):
 
     info_formatting = '\n'.join([f"- {k}: {format_dict(v)}" for k, v in info.items()])
     possible_answers_options = ""
-    for idx, c in enumerate(possible_answers):
+    for idx, c in enumerate(possible_answers or []):
         possible_answers_options += f"({chr(ord('A') + idx)}) {c}\n"
     prompt = prompt.format(info=info_formatting, question=query, possible_answers=possible_answers_options)
+    if not possible_answers:
+        prompt = f'Question: {query}\nObserved video information:\n{info_formatting}\nAnswer directly with a short word or phrase.'
 
     answer = forward_('llama', prompt, task='qa')
     answer = answer.strip()

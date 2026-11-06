@@ -1,0 +1,288 @@
+{
+  "snapshot_utc": "2026-11-06T16:49:16.413422+00:00",
+  "software": {
+    "torch": "2.11.0a0+eb65b36914.nv26.02",
+    "cuda": "13.1",
+    "packages": {
+      "transformers": "4.49.0",
+      "accelerate": "1.3.0",
+      "datasets": "2.21.0",
+      "decord": "0.6.0",
+      "numpy": "1.26.4",
+      "deepspeed": "0.15.4",
+      "pytorch-triton": "3.6.0+git9844da95.nv26.2",
+      "helion": null
+    },
+    "triton_module_version": "3.6.0",
+    "helion_module_version": null
+  },
+  "operational_devices": {
+    "visible": 8,
+    "training": 4,
+    "training_spare_keepalive": 4
+  },
+  "regression": {
+    "status": "PASS",
+    "tests": 18
+  },
+  "student_smoke": {
+    "status": "PASS",
+    "scope": "two optimizer steps over 96 deliberate repeated validation records; not full training",
+    "author_eval": {
+      "total": 2,
+      "correct": 1,
+      "accuracy": 0.5,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 2,
+        "correct": 1,
+        "accuracy": 0.5
+      },
+      "T": {
+        "total": 0,
+        "correct": 0,
+        "accuracy": null
+      },
+      "D": {
+        "total": 0,
+        "correct": 0,
+        "accuracy": null
+      }
+    },
+    "training": {
+      "train_runtime": 25.5837,
+      "train_samples_per_second": 3.752,
+      "train_steps_per_second": 0.078,
+      "train_loss": 15.796875,
+      "global_step": 2,
+      "finite_loss": true,
+      "step_losses": [
+        15.7559,
+        15.8379
+      ],
+      "numeric_logs": [
+        {
+          "step": 1,
+          "metrics": {
+            "loss": 15.7559,
+            "grad_norm": 263.4241027832031,
+            "learning_rate": 4e-05,
+            "epoch": 0.5
+          }
+        },
+        {
+          "step": 2,
+          "metrics": {
+            "loss": 15.8379,
+            "grad_norm": 260.6824951171875,
+            "learning_rate": 0.0,
+            "epoch": 1.0
+          }
+        },
+        {
+          "step": 2,
+          "metrics": {
+            "train_runtime": 25.5837,
+            "train_samples_per_second": 3.752,
+            "train_steps_per_second": 0.078,
+            "total_flos": 1.871307050319872e+16,
+            "train_loss": 15.796875,
+            "epoch": 1.0
+          }
+        }
+      ],
+      "progress_interval_seconds": 30.0,
+      "runtime_backend": {
+        "distributed_type": "DistributedType.DEEPSPEED",
+        "model_class": "deepspeed.runtime.engine.DeepSpeedEngine",
+        "world_size": 4,
+        "zero_stage": 2,
+        "bfloat16_enabled": true,
+        "optimizer_class": "deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer"
+      },
+      "attn_implementation": "sdpa",
+      "optimizer": "adamw_torch",
+      "world_size": 4,
+      "effective_batch_size": 48,
+      "loss_normalization": "trainer_per_microbatch_mean",
+      "model_accepts_loss_kwargs": false
+    },
+    "checkpoint_reload_eval": {
+      "total": 1,
+      "correct": 0,
+      "accuracy": 0.0,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 1,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "T": {
+        "total": 0,
+        "correct": 0,
+        "accuracy": null
+      },
+      "D": {
+        "total": 0,
+        "correct": 0,
+        "accuracy": null
+      }
+    },
+    "finite_gradients": true,
+    "saved_checkpoint_and_processor_reloaded": true
+  },
+  "agent_smoke": {
+    "construct": {
+      "stage": "construct",
+      "saved": 4,
+      "newly_processed": 4,
+      "statuses": {
+        "ok": 3,
+        "rejected": 1
+      },
+      "target_records": 4,
+      "correct": 1,
+      "accepted": 0,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "transfer": {
+      "stage": "transfer",
+      "saved": 1,
+      "newly_processed": 1,
+      "statuses": {
+        "ok": 1
+      },
+      "target_records": 1,
+      "correct": 1,
+      "accepted": 0,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "filter": {
+      "stage": "filter",
+      "saved": 1,
+      "newly_processed": 1,
+      "statuses": {
+        "ok": 1
+      },
+      "target_records": 1,
+      "correct": 1,
+      "accepted": 1,
+      "validation_limit": 4,
+      "complete_without_errors": true
+    },
+    "status": "PASS",
+    "validation_only": true,
+    "real_train_questions": 4
+  },
+  "cleanup": {
+    "status": "PASS",
+    "tests": {
+      "failure_with_orphan": {
+        "expected_exit": 23,
+        "actual_exit": 23,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      },
+      "signal": {
+        "expected_exit": 143,
+        "actual_exit": 143,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      },
+      "guard_crash": {
+        "expected_exit": -9,
+        "actual_exit": -9,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      }
+    },
+    "scope": "real operational failure and signal cleanup; no training"
+  },
+  "sources": [
+    {
+      "dataset": "NExT-QA",
+      "records": 34132,
+      "videos": 3870,
+      "missing_videos": 0,
+      "ready": true
+    },
+    {
+      "dataset": "STAR",
+      "records": 45731,
+      "videos": 45731,
+      "missing_videos": 0,
+      "ready": true
+    },
+    {
+      "dataset": "AGQA",
+      "records": 25000,
+      "videos": 5538,
+      "missing_videos": 0,
+      "ready": true
+    },
+    {
+      "dataset": "CLEVRER",
+      "records": 21000,
+      "videos": 8877,
+      "missing_videos": 0,
+      "ready": true
+    },
+    {
+      "dataset": "EgoQA",
+      "records": 7791,
+      "videos": 7791,
+      "missing_videos": 0,
+      "ready": true
+    }
+  ],
+  "construction_inputs_ready": true,
+  "full_training_completed": false,
+  "full_evaluation_completed": false,
+  "oom_delta": {
+    "oom": 0,
+    "oom_kill": 0
+  },
+  "commands": [
+    "bash run_aotd_smoke.sh",
+    "bash run_aotd_smoke.sh --train-only",
+    "python -B tools/test_construction.py -v",
+    "bash run_aotd_full.sh --eval-only --check",
+    "bash run_aotd_build_data.sh --check",
+    "python -B tools/validate_keepalive_cleanup.py --keepalive-script \"$AOTD_KEEPALIVE_SCRIPT\" --output-dir results/cleanup_validation"
+  ],
+  "protocol_id": "five-source-valid-media-no-anetqa-v1",
+  "source_qa_total": 133654,
+  "full_evaluation_input_check": {
+    "split": "val",
+    "eval_questions": 4996,
+    "eval_videos": 570,
+    "ready": true
+  },
+  "source_files_sha256": {
+    "config/construction/sources.json": "e60843887764b1a1249fc275645a237e107775e3eedc398205fc60c7434167b2",
+    "tools/build_sources.py": "5d2b826a460aa3be57268c003e9387dda5b396c3f8928d261c9b1f8fd52a6bd6",
+    "tools/build_cot.py": "59e0c6dc2398a13ab4669caadb356ecee6d001d9f2b8c91fa803ab97d20a54b8",
+    "tools/full_preflight.py": "33b1c1380787d25af1459bcaf117c809418a0f639d3256673ccdff88b53e8995",
+    "tools/prepare_egoqa.py": "21dd553ed83ca454d0a017e37952c2a9a90e3daa44bdbcf25bf4f38714aa1a5d",
+    "tools/keepalive_guard.py": "88fa02bbeb517cf2d01a0345dad698fe79b12ff7e08e907942b7dc51e7c45e0d",
+    "tools/with_spare_keepalive.py": "3d35039e42e3c493d8f9762351bf214d0faea503250e3ddbcc5819d359f6fccf",
+    "distillation/train.py": "d4e54ff0d60c98da1078f9084f5915800596bcd375c885940772c2ec4936466d",
+    "evaluation/eval_nextqa.py": "582556154fb73d4a8d1a63372a873af6031dfa87848df4f3f1616c3360969f84"
+  }
+}

@@ -244,6 +244,12 @@ class BaseOptions(object):
             # opt.no_core_driver = True
             if opt.eval_results_dir is not None:
                 opt.results_dir = opt.eval_results_dir
+            # Saved training settings must not override the inference device or
+            # point runtime paths back to the author's machine.
+            if args is not None:
+                opt.local_rank = args.get('local_rank', -1)
+                opt.gpu_id = args.get('gpu_id', 0)
+                opt.num_workers = 0
         else:
             if opt.exp_id is None:
                 raise ValueError("--exp_id is required for at a training option!")
@@ -359,7 +365,9 @@ def setup_model(opt):
 
     if opt.resume is not None:
         logger.info(f"Load checkpoint from {opt.resume}")
-        checkpoint = torch.load(opt.resume, map_location="cpu")
+        # Official, locally staged checkpoint with recorded SHA256; legacy
+        # optimizer metadata is not compatible with newer weights_only defaults.
+        checkpoint = torch.load(opt.resume, map_location="cpu", weights_only=False)
         
         for key in list(checkpoint["model"].keys()):
             checkpoint["model"][key.replace('module.', '')] = checkpoint["model"].pop(key)
