@@ -1,0 +1,103 @@
+{
+  "snapshot_utc": "2026-11-06T16:12:23.433905+00:00",
+  "checkout_layout": "source directories at repository root",
+  "target": "Taihua",
+  "regression_tests": {
+    "status": "PASS",
+    "tests": 10,
+    "command": "CUDA_VISIBLE_DEVICES= env/bin/python -B tools/test_construction.py -v"
+  },
+  "cpu_processor": {
+    "status": "PASS",
+    "cuda_allocated": false,
+    "records": [
+      {
+        "model": "AoTD-7B-author",
+        "sample_id": "4010069381_6",
+        "frames": [
+          32,
+          480,
+          640,
+          3
+        ],
+        "input_tokens": 4689,
+        "video_tokens": 4608,
+        "pixels": [
+          1,
+          32,
+          3,
+          336,
+          336
+        ]
+      },
+      {
+        "model": "AoTD-7B-author",
+        "sample_id": "4882821564_1",
+        "frames": [
+          32,
+          480,
+          640,
+          3
+        ],
+        "input_tokens": 4701,
+        "video_tokens": 4608,
+        "pixels": [
+          1,
+          32,
+          3,
+          336,
+          336
+        ]
+      },
+      {
+        "model": "LLaVA-7B-base",
+        "sample_id": "4010069381_6",
+        "frames": [
+          32,
+          480,
+          640,
+          3
+        ],
+        "input_tokens": 4689,
+        "video_tokens": 4608,
+        "pixels": [
+          1,
+          32,
+          3,
+          336,
+          336
+        ]
+      },
+      {
+        "model": "LLaVA-7B-base",
+        "sample_id": "4882821564_1",
+        "frames": [
+          32,
+          480,
+          640,
+          3
+        ],
+        "input_tokens": 4701,
+        "video_tokens": 4608,
+        "pixels": [
+          1,
+          32,
+          3,
+          336,
+          336
+        ]
+      }
+    ]
+  },
+  "full_eval_preflight": {
+    "split": "val",
+    "video_dir": "$AOTD_ROOT/data/nextqa/NExTVideo",
+    "errors": [],
+    "training": {},
+    "eval_questions": 4996,
+    "eval_videos": 570,
+    "missing_video_ids": [],
+    "ready": true
+  },
+  "gpu_training_repeated_after_import": false
+}

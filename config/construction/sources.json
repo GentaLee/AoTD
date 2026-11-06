@@ -1,0 +1,11 @@
+{
+  "protocol": "Rebuild from source train annotations; exact author sampling IDs and few-shot prompts were not released",
+  "sources": [
+    {"dataset":"NExT-QA","annotations":"data/nextqa/train.csv","media":"data/construction/media/NExT-QA","cot":true,"paper_qa_approx":34100,"origin":"https://github.com/doc-doc/NExT-QA/tree/2432e9724f88ed9f40010e2989f104570a91de4e/dataset/nextqa"},
+    {"dataset":"STAR","annotations":"data/raw/STAR/STAR_train.json","media":"data/construction/media/STAR","cot":true,"paper_qa_approx":45700,"origin":"https://github.com/csbobby/STAR_Benchmark"},
+    {"dataset":"AGQA","annotations":"data/raw/AGQA/train_normalized.jsonl","media":"data/construction/media/AGQA","cot":true,"paper_qa_approx":25000,"origin":"https://cs.stanford.edu/people/ranjaykrishna/agqa/"},
+    {"dataset":"ANetQA","annotations":"data/raw/ANetQA/train_normalized.jsonl","media":"data/construction/media/ANetQA","cot":true,"paper_qa_approx":25000,"origin":"https://milvlg.github.io/anetqa/"},
+    {"dataset":"CLEVRER","annotations":"data/raw/CLEVRER/train_normalized.jsonl","media":"data/construction/media/CLEVRER","cot":false,"paper_qa_approx":21000,"origin":"https://clevrer.csail.mit.edu/"},
+    {"dataset":"EgoQA","annotations":"data/raw/EgoQA/train_normalized.jsonl","media":"data/construction/media/EgoQA","cot":false,"paper_qa_approx":7800,"origin":"https://arxiv.org/html/2412.01694v2"}
+  ]
+}
