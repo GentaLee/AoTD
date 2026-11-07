@@ -3,8 +3,14 @@ import hashlib
 import json
 import math
 import os
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from aotd_checkpoints import (CHECKPOINT_MARKER, COMPLETE_MARKER, atomic_json, choose_checkpoint,
+                              export_finished_checkpoint, make_padding_plan, publish_checkpoint, publish_completion, training_identity,
+                              validate_completion)
 
 import numpy as np
 from transformers import Trainer, TrainerCallback, TrainingArguments
@@ -81,6 +87,7 @@ def build_dataset(data_path, seed=42):
 
     for dataset in datasets:
         json_path = dataset.get("json_path")
+        if not Path(json_path).is_absolute():json_path = str(Path(data_path).resolve().parent/json_path)
         dataset = load_dataset("json", data_files=json_path)
         dataset_combined.append(dataset['train'])
     
@@ -106,10 +113,19 @@ def parse_args():
     parser.add_argument("--max_steps", type=int, default=-1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dataloader_num_workers", type=int, default=0)
-    parser.add_argument("--save_strategy", default="epoch", choices=("no", "steps", "epoch"))
-    parser.add_argument("--save_steps", type=int, default=500)
+    parser.add_argument("--save_strategy", default="steps", choices=("no", "steps", "epoch"))
+    parser.add_argument("--save_steps", type=int, default=100)
+    parser.add_argument("--save_total_limit", type=int, default=2)
+    parser.add_argument("--resume_from_checkpoint", default="auto",
+                        help="auto chooses the newest complete compatible checkpoint; none requires a fresh output")
+    parser.add_argument('--pad_to_effective_batch',action='store_true',
+                        help='Full epoch only: repeat real rows to complete the last effective batch without dropping source QA')
     parser.add_argument("--local_rank", "--local-rank", type=int, default=-1)
     cli = parser.parse_args()
+    if cli.save_steps < 1 or cli.save_total_limit < 2:
+        parser.error('save_steps must be positive and save_total_limit must be at least two')
+    if cli.pad_to_effective_batch and cli.max_steps != -1:
+        parser.error('pad_to_effective_batch is reserved for complete epoch training, without a max_steps limit')
     args = TrainingArguments(
 
         # args related to training
@@ -137,7 +153,8 @@ def parse_args():
         save_strategy = cli.save_strategy,
         save_steps = cli.save_steps,
         # save_steps=1000,
-        save_total_limit = 1,
+        save_total_limit = cli.save_total_limit,
+        save_only_model = False,
         fp16 = False, # we have the model train and eval with fp16 precision
         bf16=True,
         tf32=True,
@@ -155,20 +172,35 @@ def parse_args():
     return cli, args
 
 
+def rank_zero_action(trainer, action):
+    """Wait for all checkpoint writers, then publish metadata or fail every rank."""
+    trainer.accelerator.wait_for_everyone()
+    failure = [None]
+    if trainer.is_world_process_zero():
+        try:action()
+        except Exception as exc:failure[0] = f'{type(exc).__name__}: {exc}'
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.broadcast_object_list(failure, src=0)
+    if failure[0] is not None:raise RuntimeError(f'Checkpoint publication failed: {failure[0]}')
+
+
 class TrainingProgress(TrainerCallback):
     """Expose step loss and include the processor in Trainer checkpoints."""
-    def __init__(self, processor):
+    def __init__(self, processor, identity=None, resume_checkpoint=None):
         self.processor = processor
         self.losses = []
         self.trainer = None
         self.runtime_backend = None
         self.numeric_logs = []
+        self.identity = identity
+        self.resume_checkpoint = resume_checkpoint
         interval = float(os.environ.get('AOTD_PROGRESS_INTERVAL_SECONDS', '30'))
         if not math.isfinite(interval):
             raise ValueError('AOTD_PROGRESS_INTERVAL_SECONDS must be finite')
         self.interval = max(10.0, min(60.0, interval))
         self.started = None
         self.last_progress = None
+        self.start_step = 0
 
     def print_progress(self, state, force=False):
         if not state.is_world_process_zero:
@@ -178,7 +210,8 @@ class TrainingProgress(TrainerCallback):
             return
         elapsed = now - self.started
         step, total = state.global_step, max(state.max_steps, 1)
-        eta = elapsed / step * max(total-step, 0) if step else None
+        completed = step - self.start_step
+        eta = elapsed / completed * max(total-step, 0) if completed else None
         loss = f'{self.losses[-1]:.6f}' if self.losses else 'pending'
         remaining = f'{eta:.1f}s' if eta is not None else 'pending'
         print(f'[train progress] step={step}/{total} percent={100*step/total:.1f}% '
@@ -192,6 +225,16 @@ class TrainingProgress(TrainerCallback):
         # Callback kwargs expose Trainer.model (the unwrapped HF model). Inspect
         # model_wrapped after accelerator.prepare to audit the actual engine.
         self.started = self.last_progress = time.monotonic()
+        self.start_step = state.global_step
+        # Trainer loads this history before on_train_begin; preserve earlier loss
+        # observations instead of reporting only the resumed suffix as the run.
+        for row in state.log_history:
+            if 'loss' in row:
+                loss = float(row['loss'])
+                if not math.isfinite(loss):raise FloatingPointError('Saved training history contains non-finite loss')
+                self.losses.append(loss)
+                self.numeric_logs.append(dict(step=row.get('step'),metrics={key:float(value) for key,value in row.items()
+                    if key!='step' and isinstance(value,(int,float)) and not isinstance(value,bool)}))
         trainer = self.trainer
         engine = trainer.model_wrapped
         self.runtime_backend = {
@@ -229,8 +272,19 @@ class TrainingProgress(TrainerCallback):
         self.print_progress(state)
 
     def on_save(self, args, state, control, **kwargs):
-        if state.is_world_process_zero:
-            self.processor.save_pretrained(Path(args.output_dir) / f"checkpoint-{state.global_step}")
+        folder = Path(args.output_dir) / f'checkpoint-{state.global_step}'
+        def publish():
+            self.processor.save_pretrained(folder)
+            publish_checkpoint(folder,self.identity,args.world_size,bool(args.deepspeed),self.runtime_backend)
+            print(f'[checkpoint] complete resumable state: {folder}',flush=True)
+        rank_zero_action(self.trainer,publish)
+
+    def on_step_end(self, args, state, control, **kwargs):
+        # The last partial interval still needs optimizer/RNG state before final
+        # inference export, so a failure while exporting can resume safely.
+        if args.save_strategy.value == 'steps' and state.global_step >= state.max_steps:
+            control.should_save = True
+        return control
 
 
 
@@ -238,6 +292,48 @@ class TrainingProgress(TrainerCallback):
 
 def main():
     cli, args = parse_args()
+    output = Path(cli.output_dir)
+    output.mkdir(parents=True,exist_ok=True)
+    train_dataset = None
+    padding = None
+    if cli.pad_to_effective_batch:
+        train_dataset = build_dataset(cli.data_yaml,seed=cli.seed)
+        batch=args.world_size*args.per_device_train_batch_size*args.gradient_accumulation_steps
+        padding=make_padding_plan(len(train_dataset),batch)
+        extra=train_dataset.select(padding['selected_indices'])
+        ids=[str(value) for value in extra['sample_id']]
+        padding=make_padding_plan(len(train_dataset),batch,ids)
+        if padding['padding_records']:
+            train_dataset=concatenate_datasets([train_dataset,extra])
+        if args.process_index==0:
+            print('[train view] '+json.dumps(padding,sort_keys=True),flush=True)
+    identity = training_identity(cli,args,padding)
+    provenance = output/'training_provenance.json'
+    if provenance.is_file() and json.loads(provenance.read_text()) != identity:
+        raise ValueError('Training inputs/base/protocol/recipe changed; preserve the run and use a fresh output directory')
+    if (output/COMPLETE_MARKER).is_file():
+        validate_completion(output,identity)
+        if args.process_index == 0:print('[train] verified completed phase; skipping duplicate training',flush=True)
+        return
+    resume = choose_checkpoint(output,identity,cli.resume_from_checkpoint)
+    if not provenance.is_file() and any(output.glob('model*.safetensors*')):
+        raise ValueError('Inference weights without training provenance are not a resumable checkpoint')
+    if args.process_index == 0:
+        atomic_json(provenance,identity)
+        print(f'[train] resume={resume or "fresh"}; checkpoint every {cli.save_steps} steps; retain {cli.save_total_limit}',flush=True)
+    if resume is not None:
+        state=json.loads((resume/'trainer_state.json').read_text())
+        if state['global_step']>=state['max_steps']:
+            failure=[None]
+            if args.process_index==0:
+                try:
+                    export_finished_checkpoint(output,resume,identity)
+                    print('[train] recovered final export from completed checkpoint; zero additional optimizer steps',flush=True)
+                except Exception as exc:failure[0]=f'{type(exc).__name__}: {exc}'
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                torch.distributed.broadcast_object_list(failure,src=0)
+            if failure[0]:raise RuntimeError(failure[0])
+            return
     processor = AutoProcessor.from_pretrained(cli.model_path, use_fast=False, local_files_only=True)
     processor.tokenizer.padding_side = "right"
 
@@ -258,8 +354,8 @@ def main():
         if "vision_tower" in k or 'image_newline' in k:
             v.requires_grad = False
 
-    train_dataset = build_dataset(cli.data_yaml, seed=cli.seed)
-    progress = TrainingProgress(processor)
+    if train_dataset is None:train_dataset = build_dataset(cli.data_yaml, seed=cli.seed)
+    progress = TrainingProgress(processor,identity,resume)
 
 
     trainer = Trainer(
@@ -273,7 +369,23 @@ def main():
     trainer.remove_callback(PrinterCallback)
     progress.trainer = trainer
 
-    result = trainer.train()
+    if resume is not None and args.deepspeed:
+        # DeepSpeed 0.15 uses torch.load without a weights_only argument. Newer
+        # PyTorch defaults reject its optimizer metadata. Scope legacy loading
+        # exclusively to our provenance-validated local resume directory.
+        from deepspeed.runtime.checkpoint_engine.torch_checkpoint_engine import TorchCheckpointEngine
+        original_load = TorchCheckpointEngine.load
+        trusted = resume.resolve()
+        def load_trusted(engine,path,map_location=None):
+            candidate = Path(path).resolve()
+            if trusted in candidate.parents:
+                return torch.load(candidate,map_location=map_location,weights_only=False)
+            return original_load(engine,path,map_location=map_location)
+        TorchCheckpointEngine.load = load_trusted
+        try:result = trainer.train(resume_from_checkpoint=str(resume))
+        finally:TorchCheckpointEngine.load = original_load
+    else:
+        result = trainer.train(resume_from_checkpoint=str(resume) if resume is not None else None)
     loss = float(result.metrics["train_loss"])
     if not progress.losses or not math.isfinite(loss):
         raise FloatingPointError(f"Training did not report finite losses: train_loss={loss}")
@@ -282,10 +394,12 @@ def main():
     trainer.save_model(args.output_dir)
     trainer.save_state()
     trainer.save_metrics("train", result.metrics)
-    if trainer.is_world_process_zero():
+    def publish_final():
         processor.save_pretrained(args.output_dir)
         metrics = {
             **result.metrics,
+            'train_loss': sum(progress.losses)/len(progress.losses),
+            'current_invocation_metrics': result.metrics,
             "global_step": trainer.state.global_step,
             "finite_loss": all(math.isfinite(value) for value in progress.losses),
             "step_losses": progress.losses,
@@ -304,10 +418,17 @@ def main():
             "loss_normalization": "trainer_per_microbatch_mean",
             "model_accepts_loss_kwargs": trainer.model_accepts_loss_kwargs,
             "training_scope": "smoke when max_steps is set; selected-source full training otherwise",
+            'resume_from_checkpoint': str(resume) if resume is not None else None,
+            'resumed_from_global_step': progress.start_step,
+            'target_steps': trainer.state.max_steps,
+            'periodic_checkpoint_steps': cli.save_steps,
+            'training_view_padding': padding,
         }
         with (Path(args.output_dir) / "training_metrics.json").open("w") as handle:
             json.dump(metrics, handle, indent=2, allow_nan=False)
+        publish_completion(output,identity,trainer.state.global_step,trainer.state.max_steps)
         print(f"[train] complete: {trainer.state.global_step} steps, finite loss; saved {args.output_dir}", flush=True)
+    rank_zero_action(trainer,publish_final)
 
 
 if __name__ == "__main__":

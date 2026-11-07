@@ -7,11 +7,15 @@ import math
 import os
 from pathlib import Path
 import re
+import sys
 import time
 
 import numpy as np
 import torch
 from decord import VideoReader, cpu
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools'))
+from evaluation_checkpoint import fingerprint, prepare, atomic_json, summarize
+
 from transformers import (LlavaNextVideoForConditionalGeneration,
                           LlavaNextVideoProcessor, StoppingCriteria, StoppingCriteriaList)
 
@@ -84,8 +88,6 @@ def main():
     output = Path(args.save_dir)
     output.parent.mkdir(parents=True, exist_ok=True)
     jsonl_path = output.with_suffix('.jsonl')
-    if output.exists() or jsonl_path.exists():
-        raise FileExistsError(f'refusing to overwrite {output} / {jsonl_path}')
     with open(args.data_dir, encoding='utf-8-sig', newline='') as stream:
         rows = list(csv.DictReader(stream, skipinitialspace=True))
     selected = rows if args.limit is None else rows[:args.limit]
@@ -96,6 +98,40 @@ def main():
         path = Path(args.video_dir) / f"{row['video']}.mp4"
         if not path.is_file():
             raise FileNotFoundError(path)
+    media_hashes = {}
+    def verify_record(record, row):
+        sid=f"{row['video']}_{row['qid']}"
+        if (record.get('sample_id')!=sid or record.get('gt')!=int(row['answer']) or
+            record.get('question')!=row['question'] or record.get('options')!=[row[f'a{k}'] for k in range(5)]):
+            raise ValueError('Evaluation journal is not the exact source-question prefix')
+        if (record.get('video_id')!=row['video'] or record.get('qid')!=row['qid'] or
+            record.get('split')!=args.split or record.get('category')!=row['type']):
+            raise ValueError('Evaluation journal source identity/category changed')
+        path=Path(args.video_dir)/f"{row['video']}.mp4"
+        if str(path) not in media_hashes:media_hashes[str(path)]=sha256(path)
+        if record.get('video_sha256')!=media_hashes[str(path)]:
+            raise ValueError('Previously evaluated video changed')
+        prediction=parse_letter(record.get('raw_output',''))
+        if (record.get('pred')!=prediction or record.get('correct')!=(prediction==int(row['answer'])) or
+            record.get('invalid')!=(prediction is None)):
+            raise ValueError('Evaluation prediction fields are inconsistent')
+    print('[eval] checking durable prefix and model/input fingerprint',flush=True)
+    identity=fingerprint(args.model_path,args.data_dir,args.video_dir,__file__,args.split,args.limit,args.attn_implementation)
+    records, completed=prepare(output,identity,selected,verify_record)
+    if completed is not None:
+        print(f'[eval] COMPLETE already verified: {len(records)} questions; no GPU load',flush=True)
+        return
+    resumed=len(records)
+    if resumed:print(f'[eval] resuming after {resumed}/{len(selected)} durable questions',flush=True)
+    if resumed==len(selected):
+        meta=dict(split=args.split,dataset_size=len(rows),limit=args.limit,full_dataset=len(selected)==len(rows),
+                  model_path=args.model_path,csv_sha256=sha256(args.data_dir),script_sha256=sha256(__file__),
+                  parsing='strict_letter_v1',frames=32,do_sample=False,max_new_tokens=1024,
+                  attention=args.attn_implementation,resumed_records=resumed,recovered_complete_prefix=True)
+        atomic_json(output,dict(meta=meta,summary=summarize(records),metrics=dict(
+            model_load_seconds=0,total_seconds=0,recorded_inference_seconds=sum(item['seconds'] for item in records)),res_list=records))
+        print(f'[eval] COMPLETE recovered all {resumed} durable questions; no GPU load',flush=True)
+        return
     torch.manual_seed(42)
     assert torch.cuda.is_available(), 'CUDA is required'
     torch.cuda.reset_peak_memory_stats()
@@ -114,12 +150,12 @@ def main():
                 csv_sha256=sha256(args.data_dir), script_sha256=sha256(__file__),
                 parsing='strict_letter_v1', frames=32, do_sample=False, max_new_tokens=1024,
                 attention=args.attn_implementation, torch=torch.__version__, cuda=torch.version.cuda,
-                gpu_count=torch.cuda.device_count(), progress_interval_seconds=interval)
-    records = []
+                gpu_count=torch.cuda.device_count(), progress_interval_seconds=interval,resumed_records=resumed,
+                resume_fingerprint_sha256=hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest())
     eval_started = time.monotonic()
     progress_clock = [eval_started]
-    with jsonl_path.open('x', encoding='utf-8', buffering=1) as stream:
-        for i, row in enumerate(selected, 1):
+    with jsonl_path.open('a', encoding='utf-8', buffering=1) as stream:
+        for i, row in enumerate(selected[resumed:], resumed+1):
             sample_start = time.monotonic()
             path = Path(args.video_dir) / f"{row['video']}.mp4"
             if verbose:
@@ -145,13 +181,14 @@ def main():
                           generated_tokens=generated.shape[-1]-length,
                           seconds=time.monotonic()-sample_start)
             stream.write(json.dumps(record, ensure_ascii=False) + '\n')
+            stream.flush();os.fsync(stream.fileno())
             records.append(record)
             if verbose:
                 print(f"[eval {i}/{len(selected)}] raw={raw!r} pred={pred} gt={record['gt']} correct={record['correct']} time={record['seconds']:.2f}s", flush=True)
             now = time.monotonic()
             if now-progress_clock[0] >= interval or i == len(selected):
                 elapsed = now-eval_started
-                eta = elapsed/i*(len(selected)-i)
+                eta = elapsed/max(i-resumed,1)*(len(selected)-i)
                 print(f'[eval progress] questions={i}/{len(selected)} percent={100*i/len(selected):.1f}% '
                       f'elapsed={elapsed:.1f}s estimated_remaining={eta:.1f}s', flush=True)
                 progress_clock[0] = now
@@ -167,8 +204,7 @@ def main():
     metrics = dict(model_load_seconds=load_seconds, total_seconds=time.monotonic()-start,
                    peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                    peak_reserved_bytes=torch.cuda.max_memory_reserved())
-    with output.open('x', encoding='utf-8') as stream:
-        json.dump(dict(meta=meta, summary=summary, metrics=metrics, res_list=records), stream, ensure_ascii=False, indent=2)
+    atomic_json(output,dict(meta=meta, summary=summary, metrics=metrics, res_list=records))
     print(f'[eval] COMPLETE {json.dumps(summary)} output={output}', flush=True)
 
 

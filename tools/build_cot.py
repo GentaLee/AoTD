@@ -14,7 +14,9 @@ import threading
 import time
 import traceback
 from construction_io import (BUILTINS, TOOLS, answer_matches, append_record, atomic_json,
-                             compile_program, latest_records, records, recover_journal, sha256)
+                             compile_program, execute_program, GeneratedProgramError,
+                             latest_records, records, recover_journal, sha256,
+                             reviewed_code_migration, migrate_generated_failures, should_process)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -168,8 +170,11 @@ class ConstructionBackend:
         previous = signal.signal(signal.SIGALRM, expired)
         try:
             signal.alarm(timeout)
-            exec(compiled, namespace)
-            result = namespace['execute_command'](video, row['question'], options)
+            try:
+                result = execute_program(compiled, namespace, video, row['question'], options)
+            except GeneratedProgramError as error:
+                error.program_code = code
+                raise
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, previous)
@@ -233,8 +238,12 @@ def main():
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     # A single writer per dataset; no duplicate GPU jobs or concurrently edited journals.
-    lock = (args.output_dir/'build.lock').open('a')
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with (args.output_dir/'build.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return run_stage(args)
+
+
+def run_stage(args):
     if args.stage == 'check':
         raise SystemExit(0 if preflight(args)['ready'] else 2)
     report = None if args.stage == 'export' else preflight(args)
@@ -263,11 +272,23 @@ def main():
                            if (ROOT/'models/teachers'/name).is_file()},
                        limit=args.limit, protocol='upstream tools; reconstructed zero-shot prompts; not original author CoT')
     manifest = args.output_dir/f'{args.stage}.manifest.json'
+    migration = None
     if manifest.exists():
         previous=json.loads(manifest.read_text())
-        fixed=lambda item:{key:value for key,value in item.items() if key not in {'input_sha256','input_bytes','input_revisions'}}
+        fixed=lambda item:{key:value for key,value in item.items() if key not in {'input_sha256','input_bytes','input_revisions','code_migrations'}}
         if fixed(previous)!=fixed(fingerprint):
-            raise ValueError('QA/code/prompt changed: use a new output directory to preserve provenance')
+            without_code=lambda item:{key:value for key,value in fixed(item).items() if key not in {'driver_sha256','io_sha256'}}
+            if without_code(previous)==without_code(fingerprint):
+                migration=reviewed_code_migration(previous,fingerprint,ROOT/'reproduction/metadata/construction_resume_compatibility.json')
+            if migration is None:
+                raise ValueError('QA/code/prompt changed: use a new output directory to preserve provenance')
+            history=args.output_dir/'manifest_history';history.mkdir(exist_ok=True)
+            old_digest=sha256(manifest)
+            backup=history/f'{args.stage}-{old_digest}.json'
+            if not backup.exists():atomic_json(backup,previous)
+        code_migrations=previous.get('code_migrations',[])
+        if migration:code_migrations=code_migrations+[migration]
+        if code_migrations:fingerprint['code_migrations']=code_migrations
         revisions=previous.get('input_revisions',[])
         if previous['input_sha256']!=fingerprint['input_sha256']:
             size=previous.get('input_bytes')
@@ -287,6 +308,11 @@ def main():
     atomic_json(manifest, fingerprint)
     journal = args.output_dir/f'{args.stage}.jsonl'
     done = recover_journal(journal, metadata_only=True)
+    if migration:
+        revised=migrate_generated_failures(journal,done,migration)
+        if revised:
+            done=recover_journal(journal,metadata_only=True)
+        print(f'[resume] reviewed code migration applied; preserved={len(done)} corrected_classifications={revised}',flush=True)
     # Keep only the newest attempt per ID when a preceding stage retried failures.
     eligible = None if args.stage == 'construct' else recover_journal(source, metadata_only=True)
     rows = records(source) if eligible is None else latest_records(source, eligible)
@@ -305,7 +331,7 @@ def main():
             total += 1
             if args.limit is not None and total > args.limit: break
             sid = row['sample_id']
-            if sid in done and (done[sid].get('status') == 'ok' or not args.retry_errors): continue
+            if not should_process(done.get(sid),args.retry_errors):continue
             progress.update(processed=total-1,current=sid)
             if backend is None:
                 backend = ConstructionBackend(args.output_dir) if args.stage == 'construct' else TextBackend(args.stage)
@@ -319,6 +345,8 @@ def main():
                 # a reason to abort a whole source. Infrastructure/model failures
                 # remain errors and stop the stage for investigation.
                 item.update(status='rejected',error=f'{type(error).__name__}: {error}',traceback=traceback.format_exc())
+                if isinstance(error,GeneratedProgramError):
+                    item.update(code=getattr(error,'program_code',''),rejection_kind='generated_program')
             except Exception as error:
                 item.update(status='error', error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())
             item['seconds'] = round(time.monotonic()-before, 3)

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "migrations": [
+    {
+      "migration_id": "generated-program-failure-boundary-v1",
+      "reason": "Classify Python errors originating in generated code as data rejection, preserving infrastructure failures and completed records",
+      "from": {
+        "driver_sha256": "59e0c6dc2398a13ab4669caadb356ecee6d001d9f2b8c91fa803ab97d20a54b8",
+        "io_sha256": "dcdf212033b24ae9e47d9d25d9fd6f4533e256c48f911928b8fba793a7f0540a"
+      },
+      "to": {
+        "driver_sha256": "f18c2de19613eb980b4ceed275268136bee6aa59621fdde77d451f6af92da26e",
+        "io_sha256": "5d4f09ba216773cf615f8e7b2f27377782276b5f783a6d64b76c397e505a3675"
+      }
+    }
+  ]
+}

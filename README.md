@@ -25,7 +25,9 @@ bash run_aotd_build_data.sh --check       # 检查五源制数输入
 
 正式训练默认 4 张工作卡、4 张保活卡，ZeRO-2、BF16/SDPA、microbatch 1、梯度累积 12、有效 batch 48；单卡转换、筛选或评测阶段为 1 张工作卡、7 张保活卡。正常完成、错误和可处理信号退出后恢复原保活任务；已验证错误退出、SIGTERM 与 SIGKILL 后 watchdog 恢复路径，原 8 个保活 PID 恢复且无重复进程。默认每 30 秒显示进度，阶段完成立即输出；`AOTD_PROGRESS_INTERVAL_SECONDS` 支持 10–60 秒。
 
-结果保存到 `results/full_<UTC时间>_<PID>/`，包含日志、checkpoint、逐题 JSONL 和 `full_summary.json`。运行中不写 Markdown 进度日志。
+结果保存到 `results/full_*/`，包含日志、checkpoint、逐题 JSONL 和 `full_summary.json`。同一全量命令会复用最新受管理运行并自动续接制数、训练与评测；使用 `--new-run` 显式创建新的训练/评测目录。训练默认每 100 步保存完整 checkpoint，保留最近 2 个；`--resume RUN_DIR` 可指定受管理目录。运行中不写 Markdown 进度日志。
+
+本次修复了生成程序 `UnboundLocalError` 被误判为运行级错误而中止全量制数的问题，保留已有记录并提供审核过的兼容迁移。故障原因、恢复规则和实测验证见 [开发记录](docs/DEVELOPMENT_LOG.md)。
 
 ## 离线资源与站点配置
 
