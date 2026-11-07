@@ -7,6 +7,72 @@ from pathlib import Path
 import re
 
 
+class GeneratedProgramError(ValueError):
+    """A Python error originating in the generated program, not a model/tool."""
+
+
+def execute_program(compiled, namespace, video, query, answers):
+    try:
+        exec(compiled, namespace)
+        return namespace['execute_command'](video, query, answers)
+    except (NameError, ArithmeticError, LookupError, AttributeError, TypeError,
+            ValueError, AssertionError, StopIteration) as error:
+        tail = error.__traceback__
+        while tail.tb_next is not None:
+            tail = tail.tb_next
+        if tail.tb_frame.f_code.co_filename != '<aotd-generated-program>':
+            raise
+        raise GeneratedProgramError(f'{type(error).__name__}: {error}') from error
+
+
+def reviewed_code_migration(previous, current, policy_path):
+    """Permit only an exact reviewed code pair with every other input unchanged."""
+    policy_path = Path(policy_path)
+    if not policy_path.is_file():
+        return None
+    keys = ('driver_sha256', 'io_sha256')
+    mutable = {*keys, 'input_sha256', 'input_bytes', 'input_revisions', 'code_migrations'}
+    fixed = lambda value: {key: item for key, item in value.items() if key not in mutable}
+    if fixed(previous) != fixed(current):
+        return None
+    for item in json.loads(policy_path.read_text()).get('migrations', []):
+        if (all(previous.get(key) == item['from'].get(key) for key in keys)
+                and all(current.get(key) == item['to'].get(key) for key in keys)):
+            return dict(migration_id=item['migration_id'], previous_code=item['from'],
+                        current_code=item['to'], policy_sha256=sha256(policy_path),
+                        reason=item['reason'])
+    return None
+
+
+def migrate_generated_failures(journal, index, migration):
+    """Append corrected classifications; preserve every original journal byte."""
+    updates = []
+    for row in latest_records(journal, index):
+        if row.get('status') != 'error':
+            continue
+        frames = re.findall(r'File "([^\"]+)"', row.get('traceback', ''))
+        kind = row.get('error', '').split(':', 1)[0]
+        if (not frames or frames[-1] != '<aotd-generated-program>'
+                or kind not in {'NameError', 'UnboundLocalError', 'ZeroDivisionError',
+                                'OverflowError', 'AssertionError', 'StopIteration'}):
+            continue
+        updated = dict(row, status='rejected', rejection_kind='generated_program',
+                       classification_migration=migration['migration_id'], previous_status='error')
+        updates.append(updated)
+    if updates:
+        with Path(journal).open('a') as stream:
+            for row in updates:
+                append_record(stream, row)
+    return len(updates)
+
+
+def should_process(saved, retry_rejected=False):
+    # Infrastructure failures always retry on restart; rejected data is terminal
+    # unless an explicit retry is requested. Successful records never repeat.
+    return saved is None or saved.get('status') == 'error' or (
+        retry_rejected and saved.get('status') == 'rejected')
+
+
 def records(path):
     path = Path(path)
     if path.suffix == '.jsonl':

@@ -1,0 +1,152 @@
+{
+  "status": "PASS",
+  "snapshot_utc": "2026-11-07T00:07:00.983792+00:00",
+  "scope": "checkpoint and corrected failure handling smoke; no complete full-pool training or complete evaluation",
+  "tests": {
+    "training_checkpoint_resume": {
+      "status": "PASS",
+      "snapshot_utc": "2026-11-06T23:59:23.899492+00:00",
+      "scope": "real checkpoint interruption/resume over isolated repeated QA; not full training",
+      "interruption": {
+        "exit_code": 143,
+        "saved_global_step": 1,
+        "atomic_completion_marker": true,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      },
+      "resume": {
+        "final_global_step": 2,
+        "logged_steps": [
+          1,
+          2
+        ],
+        "step_losses": [
+          15.7559,
+          15.8379
+        ],
+        "four_rank_rng_states": true,
+        "four_rank_optimizer_states": true,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      },
+      "optimizer_lr_rng_data_position": {
+        "known_fixture_loss_matches": true
+      },
+      "final_model_reload": {
+        "total": 1,
+        "invalid": 0,
+        "restoration": {
+          "original_workers": 8,
+          "same_processes": true,
+          "all_active": true,
+          "duplicate_workers": 0
+        }
+      },
+      "world_size": 4,
+      "effective_batch_size": 48,
+      "zero_stage": 2,
+      "final_completion_marker": true,
+      "checkpoint_file_count": 28
+    },
+    "completed_export_recovery": {
+      "status": "PASS",
+      "final_global_step": 2,
+      "new_optimizer_steps": 0,
+      "final_export_recovered": true,
+      "completion_marker_recreated": true,
+      "no_checkpoint_step_3": true,
+      "learned_weights_sha256_unchanged": true,
+      "completed_skip_weights_mtime_unchanged": true,
+      "original_workers": 8,
+      "same_processes": true,
+      "duplicate_workers": 0
+    },
+    "evaluation_resume": {
+      "status": "PASS",
+      "scope": "two genuine evaluation questions; signal after first durable prediction",
+      "interrupted_exit": 143,
+      "resumed_records": 1,
+      "final_records": 2,
+      "prefix_bytes_preserved": true,
+      "unique_sample_ids": true,
+      "completed_skip_with_cuda_hidden": true,
+      "interruption_restoration": {
+        "original_workers": 8,
+        "same_processes": true,
+        "duplicate_workers": 0
+      },
+      "resume_restoration": {
+        "original_workers": 8,
+        "same_processes": true,
+        "duplicate_workers": 0
+      },
+      "complete_prefix_reconstruction_with_cuda_hidden": true
+    },
+    "construction_journal_resume": {
+      "status": "PASS",
+      "original_journal_rows": 2206,
+      "original_unique_samples": 2206,
+      "original_prefix_bytes": 2928975,
+      "original_prefix_sha256": "2611b29813af3ce7226e79e8b911f524e1e329514147582ec2ad12d346e50583",
+      "prefix_preserved": true,
+      "original_manifest_sha256": "9d87c0b86c44cfacfed7409f1ac67dc55b2a154e148a00ab7ca5c37dd88fcd8c",
+      "reviewed_manifest_changed": true,
+      "reclassified_existing_records": 1,
+      "new_real_samples": 2,
+      "new_operational_errors": 0,
+      "current_unique_samples": 2208,
+      "interrupted_exit": 143,
+      "restoration": {
+        "original_workers": 8,
+        "same_processes": true,
+        "duplicate_workers": 0
+      }
+    }
+  },
+  "cpu_regressions": {
+    "data_and_construction": 18,
+    "generated_failure_handling": 5,
+    "training_checkpoints_and_padding": 12,
+    "evaluation_resume": 4,
+    "full_run_selection": 6,
+    "total": 45,
+    "unified_discovery": {
+      "status": "PASS",
+      "tests": 45,
+      "seconds": 2.14,
+      "command": "CUDA_VISIBLE_DEVICES= env/bin/python -B -m unittest discover -s tools -p test_*.py -v"
+    }
+  },
+  "full_training_completed": false,
+  "full_evaluation_completed": false,
+  "oom_delta": {
+    "oom": 0,
+    "oom_kill": 0
+  },
+  "entrypoint_preflight": {
+    "mode": "eval-only --check",
+    "questions": 4996,
+    "ready": true,
+    "gpu_workloads_launched": false
+  },
+  "source_files_sha256": {
+    "distillation/train.py": "c14e5931d4cc723f97b7346b6212e12a76220a96584a17d047faef6619be0b4f",
+    "distillation/aotd_checkpoints.py": "ed140521bc28093675ad60dcf6131d69a07055ca8fa99c62cfb1c63c33f3e704",
+    "tools/full_pipeline.sh": "489fc89825c49b5004ccee659efce3d72897eee3b818e3d72d711e99f5bff588",
+    "evaluation/eval_nextqa.py": "17556df1afc8d36adb6c1d082156258334377ed7e8911db4820d7d639719969b",
+    "tools/evaluation_checkpoint.py": "906c7806d0ee24d5b10ceb673c5d1d2515326ef30100df62d14c192049db5410",
+    "run_aotd_full.sh": "153884a00602e9e484882e231d8e0d019d347810979a343db08a062884c5ea4c",
+    "tools/full_run_state.py": "10d46a4abb2c8f66885de3257724b6f097afd9fb8314988c848fe11eccc02693",
+    "tools/build_cot.py": "f18c2de19613eb980b4ceed275268136bee6aa59621fdde77d451f6af92da26e",
+    "tools/construction_io.py": "5d4f09ba216773cf615f8e7b2f27377782276b5f783a6d64b76c397e505a3675",
+    "reproduction/metadata/construction_resume_compatibility.json": "0044d01b00c597083142e673706834b2fcf74c14da3e8438f2d4aa9f489cdbe9"
+  }
+}

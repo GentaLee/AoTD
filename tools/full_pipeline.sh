@@ -38,7 +38,9 @@ if [[ "$STAGE" == --train-stage ]]; then
             --model_path "$ROOT/models/LLaVA-7B-base" --data_yaml "$RUN/$mode.yaml" \
             --output_dir "$RUN/${mode}_s42" --deepspeed "$ROOT/distillation/configs/ds_config_zero2.json" \
             --optim adamw_torch --per_device_train_batch_size 1 --gradient_accumulation_steps "$ACC" \
-            --attn_implementation sdpa --dataloader_num_workers 0 --seed 42 --save_strategy epoch
+            --attn_implementation sdpa --dataloader_num_workers 0 --seed 42 --save_strategy steps \
+            --save_steps "${AOTD_SAVE_STEPS:-100}" --save_total_limit "${AOTD_SAVE_TOTAL_LIMIT:-2}" \
+            --resume_from_checkpoint auto --pad_to_effective_batch
     done
     exit 0
 fi

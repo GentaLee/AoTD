@@ -89,7 +89,7 @@ bash run_aotd_full.sh
 
 默认 `AOTD_PROGRESS_INTERVAL_SECONDS=30`，允许 10–60 秒。阶段完成立即输出，不必等下个间隔。训练展示 step、总步数、百分比、已用时间、预计剩余时间和 loss；评测展示题目进度与预计剩余时间。逐步数值、逐题 JSONL 和失败信息完整保留。默认不逐题、逐 token 刷屏，`AOTD_VERBOSE=1` 可查看评测细节。
 
-制数 JSONL 逐条落盘，可恢复中断尾部并按输入、提示词、代码和模型指纹检查兼容性。重跑同阶段会续接合格记录，不能混用旧指纹轨迹。**学生训练入口不承诺自动从任意中断 checkpoint 续训**，重新 full 会建立新运行目录。
+制数 JSONL 逐条落盘，可恢复中断尾部并按输入、提示词、代码和模型指纹检查兼容性。针对已审核的错误分类修复，提供保留原始前缀和旧 manifest 的明确迁移。学生训练默认每 100 步保存完整 checkpoint，保留最近 2 个，恢复 optimizer/scheduler/RNG/Trainer/DeepSpeed 状态；评测按已完成题目的持久前缀续跑。同一 full 命令默认复用最新受管理运行，`--new-run` 创建新训练/评测目录，`--resume RUN_DIR` 指定目录。详细恢复边界和实测结果见 [开发记录](DEVELOPMENT_LOG.md)。
 
 ## 6. 目录、配置与结果
 
