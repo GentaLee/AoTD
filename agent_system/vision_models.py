@@ -80,7 +80,15 @@ class Owlv2Model(BaseModel):
         if isinstance(obj, str):
             obj = [obj]
         text = ['a photo of a ' + t for t in obj]
-        inputs = self.processor(text=text, images=image, return_tensors='pt')
+        # The detector has a much shorter text context than the language
+        # teachers. Generated object descriptions can exceed it, and the
+        # processor otherwise pads without truncating them, causing a shape
+        # mismatch inside the text encoder. Respect the loaded model's limit
+        # rather than relying on a tokenizer default or a hard-coded length.
+        text_limit = self.model.config.text_config.max_position_embeddings
+        inputs = self.processor(text=text, images=image, return_tensors='pt',
+                                padding='max_length', truncation=True,
+                                max_length=text_limit)
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.shape[1:]]).to(self.model.device)

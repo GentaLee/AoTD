@@ -16,7 +16,8 @@ import traceback
 from construction_io import (BUILTINS, TOOLS, answer_matches, append_record, atomic_json,
                              compile_program, execute_program, GeneratedProgramError,
                              latest_records, records, recover_journal, sha256,
-                             reviewed_code_migration, migrate_generated_failures, should_process)
+                             reviewed_code_migration, migrate_generated_failures, should_process,
+                             CODE_KEYS, tool_sources_sha256)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -149,6 +150,7 @@ class ConstructionBackend:
     def __call__(self, row, trace_path, timeout):
         import decord
         import numpy as np
+        trace_path.write_text('')
         reader = decord.VideoReader(row['video_path'], num_threads=1, ctx=decord.cpu(0))
         count = len(reader); fps = float(reader.get_avg_fps())
         if not count or fps <= 0: raise ValueError('Empty video or invalid fps')
@@ -161,18 +163,21 @@ class ConstructionBackend:
         # The old adapter added notebook display arguments; this driver does not use them.
         code = code.replace('video_clip, query, possible_answers, time_wait_between_lines, syntax',
                             'video_clip, query, possible_answers')
-        compiled, code = compile_program(code)
+        try:
+            compiled, code = compile_program(code)
+        except (ValueError, SyntaxError) as error:
+            error.program_code = code
+            raise
         namespace = {'__builtins__': BUILTINS}
         namespace.update({name:getattr(self.clip_module, name) for name in TOOLS})
         self.clip_module.cot_name = str(trace_path)
-        trace_path.write_text('')
         def expired(*_): raise TimeoutError(f'Generated program exceeded {timeout}s')
         previous = signal.signal(signal.SIGALRM, expired)
         try:
             signal.alarm(timeout)
             try:
                 result = execute_program(compiled, namespace, video, row['question'], options)
-            except GeneratedProgramError as error:
+            except Exception as error:
                 error.program_code = code
                 raise
         finally:
@@ -267,6 +272,7 @@ def run_stage(args):
                        transfer_prompt_sha256=sha256(ROOT/'config/construction/transfer.prompt'),
                        filter_prompt_sha256=sha256(AGENT/'prompts/cot_filter.prompt'),
                        driver_sha256=sha256(Path(__file__)), io_sha256=sha256(ROOT/'tools/construction_io.py'),
+                       tool_sources_sha256=tool_sources_sha256(AGENT),
                        model_manifests={name:sha256(ROOT/'models/teachers'/name) for name in
                            ['download_manifest.json','auxiliary_manifest.json','local_llama_manifest.json','gated_manifest.json']
                            if (ROOT/'models/teachers'/name).is_file()},
@@ -277,7 +283,7 @@ def run_stage(args):
         previous=json.loads(manifest.read_text())
         fixed=lambda item:{key:value for key,value in item.items() if key not in {'input_sha256','input_bytes','input_revisions','code_migrations'}}
         if fixed(previous)!=fixed(fingerprint):
-            without_code=lambda item:{key:value for key,value in fixed(item).items() if key not in {'driver_sha256','io_sha256'}}
+            without_code=lambda item:{key:value for key,value in fixed(item).items() if key not in CODE_KEYS}
             if without_code(previous)==without_code(fingerprint):
                 migration=reviewed_code_migration(previous,fingerprint,ROOT/'reproduction/metadata/construction_resume_compatibility.json')
             if migration is None:
@@ -338,9 +344,11 @@ def run_stage(args):
             item = {key:value for key,value in row.items() if key not in {'status','error','traceback','seconds'}}
             before = time.monotonic()
             trace = trace_dir/(hashlib.sha256(sid.encode()).hexdigest()+'.txt')
+            failure = None
             try:
                 item.update(backend(row, trace, args.timeout), status='ok')
             except (ValueError, SyntaxError, TypeError, AttributeError, KeyError, IndexError, TimeoutError) as error:
+                failure = error
                 # Invalid generated programs/rationales are rejected data, not
                 # a reason to abort a whole source. Infrastructure/model failures
                 # remain errors and stop the stage for investigation.
@@ -348,7 +356,15 @@ def run_stage(args):
                 if isinstance(error,GeneratedProgramError):
                     item.update(code=getattr(error,'program_code',''),rejection_kind='generated_program')
             except Exception as error:
+                failure = error
                 item.update(status='error', error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())
+            if failure is not None:
+                # Preserve the exact generated program and partial observations
+                # for tool/model failures as well as invalid Python programs.
+                if getattr(failure, 'program_code', None):
+                    item['code'] = failure.program_code
+                if trace.is_file():
+                    item['execution_trace'] = trace.read_text()
             item['seconds'] = round(time.monotonic()-before, 3)
             append_record(stream, item)
             if sid in done: statuses[done[sid]['status']] -= 1

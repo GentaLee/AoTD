@@ -1,0 +1,174 @@
+{
+  "snapshot_utc": "2026-11-07T02:16:16.586202+00:00",
+  "failure": {
+    "sample_id": "4563040340_0",
+    "stage": "NExT-QA construct",
+    "unique_records": 2564,
+    "error": "OWLv2 text input had 97 tokens but model position embeddings support 16"
+  },
+  "regression": {
+    "status": "PASS",
+    "tests": 69,
+    "seconds": 9.391,
+    "scope": "CPU mode on target runtime; actual offline processor and tensor operations; no synthetic training data"
+  },
+  "real_detector_replay": {
+    "sample_id": "4563040340_0",
+    "query_sha256": "98a1e7c407833aebfe8340558bdfe011fb08888fe42aaeae3b1e266a4f300520",
+    "original_input_tokens": 97,
+    "model_text_limit": 16,
+    "returned_boxes": 0,
+    "seconds": 5.616,
+    "software": {
+      "torch": "2.11.0a0+eb65b36914.nv26.02",
+      "transformers": "4.49.0",
+      "cuda": "13.1"
+    },
+    "actual_input_tokens": 16,
+    "eos_preserved": true,
+    "logits_shape": [
+      1,
+      3600,
+      1
+    ],
+    "boxes_shape": [
+      1,
+      3600,
+      4
+    ],
+    "finite_logits": true,
+    "finite_boxes": true,
+    "status": "PASS"
+  },
+  "construction_prefix": {
+    "bytes": 3466004,
+    "sha256": "1645c76b613b2c0e3f225b99e1cf9ceb255f05f3443a88e12f26f0d7df9f0ece",
+    "unique_samples": 2564
+  },
+  "full_observation": {
+    "status": "PASS_FOR_OBSERVED_SCOPE",
+    "first_segment": {
+      "snapshot_utc": "2026-11-07T02:05:46.287343+00:00",
+      "full_run_id": "full_20261107T010125_3353656_5d210782",
+      "current_unique_samples": 3004,
+      "newly_completed_unique_samples": 440,
+      "statuses": {
+        "ok": 2378,
+        "rejected": 626
+      },
+      "appended_operational_errors": 0,
+      "prefix_preserved": true,
+      "work_devices": 4,
+      "spare_keepalive_devices": 4,
+      "spare_ready_workers": 4
+    },
+    "first_segment_progress_elapsed_seconds": 1380,
+    "failed_sample": {
+      "sample_id": "4563040340_0",
+      "status": "rejected",
+      "error": "GeneratedProgramError: AttributeError: 'int' object has no attribute 'items'",
+      "correct": null
+    },
+    "controlled_interruption": {
+      "status": "PASS",
+      "snapshot_utc": "2026-11-07T02:05:50.165056+00:00",
+      "full_run_id": "full_20261107T010125_3353656_5d210782",
+      "full_exit_code": 143,
+      "run_state": "interrupted",
+      "restoration": {
+        "original_workers": 8,
+        "same_processes": true,
+        "all_active": true,
+        "duplicate_workers": 0
+      }
+    },
+    "restart": {
+      "snapshot_utc": "2026-11-07T02:16:16.617490+00:00",
+      "preserved_prefix_bytes": 4159991,
+      "preserved_prefix_sha256": "04fccd77d1de790cb51ee0c331e1c61c7a82c09d2ffc295468830e297f0485e5",
+      "prefix_preserved": true,
+      "baseline_unique": 3004,
+      "resumed_new_unique": 71,
+      "current_unique": 3075,
+      "duplicate_terminal_reprocesses": 0,
+      "new_operational_errors": 0,
+      "work_devices": 4,
+      "spare_keepalive_devices": 4,
+      "status": "PASS"
+    },
+    "full_training_completed": false,
+    "full_evaluation_completed": false,
+    "final_running_snapshot": {
+      "snapshot_utc": "2026-11-07T02:16:16.586202+00:00",
+      "full_run_id": "full_20261107T010125_3353656_5d210782",
+      "full_state": "running",
+      "full_process_alive": true,
+      "current_unique_samples": 3075,
+      "newly_completed_unique_samples": 511,
+      "statuses": {
+        "ok": 2436,
+        "rejected": 639
+      },
+      "appended_operational_errors": 0,
+      "prefix_preserved": true,
+      "work_devices": 4,
+      "spare_keepalive_devices": 4,
+      "spare_ready_workers": 4
+    }
+  },
+  "software": {
+    "torch": "2.11.0a0+eb65b36914.nv26.02",
+    "cuda": "13.1",
+    "transformers": "4.49.0",
+    "deepspeed": "0.15.4",
+    "triton": "3.6.0",
+    "helion": null
+  },
+  "commands": [
+    "CUDA_VISIBLE_DEVICES= AOTD_OWLV2_MODEL_DIR=\"$PWD/models/teachers/OWLv2\" env/bin/python -B -m unittest discover -s tools -p \"test_*.py\" -v",
+    "CUDA_VISIBLE_DEVICES=0 env/bin/python -B tools/validate_owlv2_replay.py --query-file runtime/regression/failed_owl_query.txt --expected-tokens 97 --output runtime/regression/owlv2_replay_public.json",
+    "bash run_aotd_full.sh"
+  ],
+  "source_files_sha256": {
+    "agent_system/vision_models.py": "1dba0a97367d1321bc9282a64c33448e0d7b0d188b862df823bcb64f54fa8239",
+    "agent_system/video_clip.py": "599430bc17f68636e46bde6f0d8cf1c947ff8355f75a5b92b2ff63b37f4bd677",
+    "tools/build_cot.py": "518a71088d836a185b9344b391190648bebbcd8993902e51d428f132f8a304e2",
+    "tools/construction_io.py": "1fa2ee0ebb684dc6a21d80636407066165b5200f2058cac64e4e04966cb574f6",
+    "tools/prepare_full_train.py": "425547724f42c861edc2a92b900a3e6595fdbfcffd04a78c821ba385f9f1050f",
+    "distillation/aotd_checkpoints.py": "1dadd874cccc1f06590b55ca8073dad60c35d9a7818284b0c99f0d4cb5d89d80",
+    "run_aotd_full.sh": "f4eee957fabb922d24d5df0c92d97f193f17f49d0f6499b3f7e9adbc23f5b913"
+  },
+  "replay_execution": {
+    "guarded": true,
+    "work_devices": 1,
+    "spare_keepalive_devices": 7,
+    "restoration": {
+      "original_workers": 8,
+      "same_processes": true,
+      "all_active": true,
+      "duplicate_workers": 0
+    }
+  },
+  "resource_observations": {
+    "scope": "sampled observations only; not a performance benchmark or actual lifetime peak",
+    "new_unique_approximately": [
+      100,
+      250,
+      440
+    ],
+    "construct_rss_gib": [
+      5.03,
+      5.41,
+      5.51
+    ],
+    "cgroup_memory_gib": [
+      13.12,
+      13.95,
+      14.25
+    ],
+    "cgroup_limit_gib": 1760,
+    "oom_count": 0,
+    "oom_kill_count": 0,
+    "kernel_memory_peak_available": false
+  }
+}

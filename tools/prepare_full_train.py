@@ -5,39 +5,99 @@ Input CoT fields: sample_id,rationale. No synthetic or placeholder CoT is made.
 """
 import argparse
 from collections import Counter
+import fcntl
 import hashlib
 import json
+import os
 from pathlib import Path
-from construction_io import records
+from construction_io import atomic_json, records
 from training_protocol import load_protocol, coverage_errors
 
-def main():
-    p=argparse.ArgumentParser(__doc__)
-    p.add_argument('--qa',type=Path,required=True)
-    p.add_argument('--cot',type=Path,required=True)
-    p.add_argument('--output-dir',type=Path,required=True)
-    p.add_argument('--full-pool',action='store_true',help='Require complete coverage of every enabled source')
-    a=p.parse_args()
+
+ARTIFACTS=('answering.json','reasoning.json','instruct.yaml','aotd.yaml','manifest.json')
+
+
+def digest(path):
+    with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
+
+
+def sync_directory(path):
+    descriptor=os.open(path,os.O_RDONLY|os.O_DIRECTORY)
+    try:os.fsync(descriptor)
+    finally:os.close(descriptor)
+
+
+def yaml_text(output, mode):
+    paths=[output/'answering.json']
+    if mode=='aotd':paths.append(output/'reasoning.json')
+    return 'datasets:\n'+''.join('  - json_path: '+json.dumps(str(path.resolve()))+'\n' for path in paths)
+
+
+def publish(output, staged, intent):
+    """Resume a verified publication; the manifest is always the final commit."""
+    # Validate the complete transaction before publishing any additional file.
+    for name in ARTIFACTS:
+        final=output/name;pending=staged/name
+        source=final if final.exists() else pending
+        if not source.is_file() or digest(source)!=intent['artifact_sha256'][name]:
+            raise ValueError(f'Conflicting/incomplete training artifact preserved: {source}')
+    for name in ARTIFACTS:
+        final=output/name
+        if not final.exists():
+            (staged/name).replace(final)
+            sync_directory(output)
+
+
+def prepare(qa_path, cot_path, output, full_pool=False):
+    output=Path(output).resolve();qa_path=Path(qa_path);cot_path=Path(cot_path)
+    output.mkdir(parents=True,exist_ok=True)
+    with (output/'.prepare.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        return prepare_locked(qa_path,cot_path,output,full_pool)
+
+
+def prepare_locked(qa_path, cot_path, output, full_pool):
     protocol=load_protocol()
     allowed={source['dataset'] for source in protocol['sources']}
     cot_sources={source['dataset'] for source in protocol['sources'] if source['cot']}
-    for path in [a.qa,a.cot]:
+    for path in [qa_path,cot_path]:
         if not path.is_file():raise FileNotFoundError(f'Real training source required: {path}')
-    def digest(path):
-        with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
-    hashes={str(path.resolve()):digest(path) for path in [a.qa,a.cot]}
-    a.output_dir.mkdir(parents=True,exist_ok=True)
+    hashes={str(path.resolve()):digest(path) for path in [qa_path,cot_path]}
+    expected=dict(protocol_id=protocol['protocol_id'],full_pool=full_pool,input_sha256=hashes)
+    staged=output/'.prepare-publication';staged.mkdir(exist_ok=True)
+    intent_path=staged/'publication.json'
+    if intent_path.is_file():
+        intent=json.loads(intent_path.read_text())
+        if intent.get('inputs')!=expected:
+            raise ValueError('Training source/protocol changed during publication; preserve the pool and use a fresh output directory')
+        publish(output,staged,intent)
+        manifest=json.loads((output/'manifest.json').read_text())
+        print(f'[prepare] verified/resumed {manifest["qa_records"]} QA + {manifest["cot_records"]} real filtered CoT; {output}')
+        return manifest
+    if (output/'manifest.json').is_file():
+        manifest=json.loads((output/'manifest.json').read_text())
+        if any(manifest.get(key)!=value for key,value in expected.items()):
+            raise ValueError('Existing training source/protocol changed; preserve the pool and use a fresh output directory')
+        for name in ['answering.json','reasoning.json']:
+            path=output/name
+            if not path.is_file() or digest(path)!=manifest.get('training_file_sha256',{}).get(name):
+                raise ValueError(f'Existing training artifact changed or missing: {path}')
+        for mode in ['instruct','aotd']:
+            if (output/f'{mode}.yaml').read_text()!=yaml_text(output,mode):
+                raise ValueError(f'Existing training YAML changed: {mode}')
+        if full_pool:
+            problems=coverage_errors(manifest.get('dataset_counts',{}),protocol)
+            if problems:raise ValueError('; '.join(problems))
+        print(f'[prepare] verified existing training pool; {output}')
+        return manifest
     cot={}
-    for row in records(a.cot):
+    for row in records(cot_path):
         sid=row['sample_id'];text=row.get('rationale','').strip()
         if sid in cot or not text:raise ValueError(f'Duplicate/empty CoT: {sid}')
         cot[sid]=text
-    qa=records(a.qa);seen=set();sources=Counter();reason_count=0;qa_count=0
-    answer_path=a.output_dir/'answering.json';reason_path=a.output_dir/'reasoning.json'
-    # Refuse to overwrite data that may be in use by another run.
-    for f in [answer_path,reason_path]:
-        if f.exists():raise FileExistsError(f)
-    answer_tmp=answer_path.with_suffix('.json.partial');reason_tmp=reason_path.with_suffix('.json.partial')
+    qa=records(qa_path);seen=set();sources=Counter();reason_count=0;qa_count=0
+    answer_path=output/'answering.json';reason_path=output/'reasoning.json'
+    answer_tmp=staged/answer_path.name;reason_tmp=staged/reason_path.name
     with answer_tmp.open('w') as answering,reason_tmp.open('w') as reasoning:
         answering.write('[\n');reasoning.write('[\n')
         for i,row in enumerate(qa):
@@ -71,19 +131,35 @@ def main():
                 reasoning.write(json.dumps(record('Explain the rationale to answer the question.',cot[sid])))
                 reason_count+=1
         answering.write('\n]\n');reasoning.write('\n]\n')
+        for stream in [answering,reasoning]:stream.flush();os.fsync(stream.fileno())
     if set(cot)-seen:raise ValueError('CoT IDs do not all match QA IDs')
-    if a.full_pool:
+    if full_pool:
         problems=coverage_errors(sources,protocol)
         if problems:raise ValueError('; '.join(problems))
         if not reason_count:raise ValueError('Full AoTD pool requires accepted CoT records')
-    for path in [a.qa,a.cot]:
+    for path in [qa_path,cot_path]:
         if digest(path)!=hashes[str(path.resolve())]:raise ValueError('Training source changed during preparation; refusing publication')
     output_hashes={answer_path.name:digest(answer_tmp),reason_path.name:digest(reason_tmp)}
-    answer_tmp.replace(answer_path);reason_tmp.replace(reason_path)
-    for name,paths in [('instruct',[answer_path]),('aotd',[answer_path,reason_path])]:
-        text='datasets:\n'+''.join('  - json_path: '+json.dumps(str(x.resolve()))+'\n' for x in paths)
-        (a.output_dir/f'{name}.yaml').write_text(text)
-    (a.output_dir/'manifest.json').write_text(json.dumps(dict(protocol_id=protocol['protocol_id'],full_pool=a.full_pool,qa_records=qa_count,cot_records=reason_count,dataset_counts=dict(sources),input_sha256=hashes,training_file_sha256=output_hashes),indent=2))
-    print(f'[prepare] {qa_count} QA + {reason_count} real filtered CoT; {a.output_dir}')
+    for mode in ['instruct','aotd']:
+        with (staged/f'{mode}.yaml').open('w') as stream:
+            stream.write(yaml_text(output,mode));stream.flush();os.fsync(stream.fileno())
+    manifest=dict(**expected,qa_records=qa_count,cot_records=reason_count,
+                  dataset_counts=dict(sources),training_file_sha256=output_hashes)
+    atomic_json(staged/'manifest.json',manifest)
+    intent=dict(version=1,inputs=expected,artifact_sha256={name:digest(staged/name) for name in ARTIFACTS})
+    atomic_json(intent_path,intent);sync_directory(staged)
+    publish(output,staged,intent)
+    print(f'[prepare] {qa_count} QA + {reason_count} real filtered CoT; {output}')
+    return manifest
+
+
+def main():
+    p=argparse.ArgumentParser(__doc__)
+    p.add_argument('--qa',type=Path,required=True)
+    p.add_argument('--cot',type=Path,required=True)
+    p.add_argument('--output-dir',type=Path,required=True)
+    p.add_argument('--full-pool',action='store_true',help='Require complete coverage of every enabled source')
+    a=p.parse_args()
+    prepare(a.qa,a.cot,a.output_dir,a.full_pool)
 
 if __name__=='__main__':main()

@@ -59,13 +59,13 @@ QA_SOURCE=${AOTD_QA_SOURCE:-$ROOT/data/five_source_sources/qa_normalized.json}
 COT_SOURCE=${AOTD_COT_SOURCE:-$ROOT/data/five_source_sources/cot_filtered.json}
 if [[ ! -f "$QA_SOURCE" && -f "${QA_SOURCE}l" ]]; then QA_SOURCE="${QA_SOURCE}l"; fi
 if [[ ! -f "$COT_SOURCE" && -f "${COT_SOURCE}l" ]]; then COT_SOURCE="${COT_SOURCE}l"; fi
-if [[ "$MODE" == all && "$CHECK" == 0 && ! -f "$TRAIN_DATA/instruct.yaml" && ! -f "$TRAIN_DATA/aotd.yaml" && ( ! -f "$QA_SOURCE" || ! -f "$COT_SOURCE" ) ]]; then
+if [[ "$MODE" == all && "$CHECK" == 0 && ( ! -f "$TRAIN_DATA/instruct.yaml" || ! -f "$TRAIN_DATA/aotd.yaml" ) && ( ! -f "$QA_SOURCE" || ! -f "$COT_SOURCE" ) ]]; then
     echo '[full] Training inputs absent; preparing five-source QA and Agent CoT before student training'
     bash "$ROOT/run_aotd_build_data.sh"
     QA_SOURCE=${AOTD_QA_SOURCE:-$ROOT/data/five_source_sources/qa_normalized.jsonl}
     COT_SOURCE=${AOTD_COT_SOURCE:-$ROOT/data/five_source_sources/cot_filtered.jsonl}
 fi
-if [[ "$MODE" == all && "$CHECK" == 0 && ! -f "$TRAIN_DATA/instruct.yaml" && ! -f "$TRAIN_DATA/aotd.yaml" && -f "$QA_SOURCE" && -f "$COT_SOURCE" ]]; then
+if [[ "$MODE" == all && "$CHECK" == 0 && -f "$QA_SOURCE" && -f "$COT_SOURCE" ]]; then
     "$ROOT/env/bin/python" -B "$ROOT/tools/prepare_full_train.py" --qa "$QA_SOURCE" --cot "$COT_SOURCE" --output-dir "$TRAIN_DATA" --full-pool
 fi
 echo '[full] Checking all training records and all evaluation media before pausing keep-alive'

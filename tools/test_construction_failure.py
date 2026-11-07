@@ -11,7 +11,8 @@ from unittest.mock import patch
 import build_cot
 from construction_io import (BUILTINS, GeneratedProgramError, compile_program,
                              execute_program, latest_records, migrate_generated_failures,
-                             records, recover_journal, reviewed_code_migration)
+                             records, recover_journal, reviewed_code_migration,
+                             tool_sources_sha256)
 
 
 class FailureTests(unittest.TestCase):
@@ -50,6 +51,26 @@ class FailureTests(unittest.TestCase):
         self.assertIsNone(reviewed_code_migration(old,dict(new,driver_sha256='x'*64),policy))
         self.assertIsNone(reviewed_code_migration(old,dict(new,qa_sha256='changed'),policy))
         self.assertIsNone(reviewed_code_migration(old,dict(new,program_prompt_sha256='changed'),policy))
+        self.assertIsNone(reviewed_code_migration(old,dict(new,tool_sources_sha256={'tool.py':'changed'}),policy))
+
+    def test_tool_fingerprint_tracks_code_and_prompts_and_requires_exact_review(self):
+        agent=self.root/'agent';agent.mkdir()
+        (agent/'tool.py').write_text('original implementation')
+        (agent/'action.prompt').write_text('original prompt')
+        original=tool_sources_sha256(agent)
+        (agent/'tool.py').write_text('reviewed bounded input fix')
+        current=tool_sources_sha256(agent)
+        self.assertNotEqual(original,current)
+        self.assertEqual(set(current),{'tool.py','action.prompt'})
+        old=dict(driver_sha256='a',io_sha256='b',qa_sha256='same',tool_sources_sha256=original)
+        new=dict(old,driver_sha256='c',io_sha256='d',tool_sources_sha256=current)
+        policy=self.root/'policy.json'
+        policy.write_text(json.dumps(dict(migrations=[dict(migration_id='tool-bounds',reason='reviewed tool fix',
+            **{'from':{k:old[k] for k in ['driver_sha256','io_sha256','tool_sources_sha256']},
+               'to':{k:new[k] for k in ['driver_sha256','io_sha256','tool_sources_sha256']}})])))
+        self.assertEqual(reviewed_code_migration(old,new,policy)['migration_id'],'tool-bounds')
+        (agent/'action.prompt').write_text('unreviewed prompt change')
+        self.assertIsNone(reviewed_code_migration(old,dict(new,tool_sources_sha256=tool_sources_sha256(agent)),policy))
 
     def test_historical_reclassification_is_append_only_and_scoped(self):
         journal=self.root/'construct.jsonl'
@@ -80,7 +101,11 @@ class FailureTests(unittest.TestCase):
                 sid=row['sample_id'];calls.append(sid)
                 if sid=='generated':raise GeneratedProgramError('UnboundLocalError: fixture')
                 if sid=='infrastructure' and fail_once[0]:
-                    fail_once[0]=False;raise RuntimeError('recoverable backend failure')
+                    fail_once[0]=False
+                    error=RuntimeError('recoverable backend failure')
+                    error.program_code='exact failing program'
+                    Path(_[0]).write_text('partial visual observations')
+                    raise error
                 return dict(correct=True)
         argv=['build_cot.py','--stage','construct','--qa',str(qa),'--output-dir',str(out)]
         with patch.object(build_cot,'ROOT',self.root),patch.object(build_cot,'AGENT',self.root/'agent_system'),\
@@ -90,6 +115,9 @@ class FailureTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as failure:build_cot.main()
             self.assertEqual(failure.exception.code,3)
             journal=out/'construct.jsonl';prefix=journal.read_bytes()
+            failed=json.loads(prefix.splitlines()[-1])
+            self.assertEqual(failed['code'],'exact failing program')
+            self.assertEqual(failed['execution_trace'],'partial visual observations')
             build_cot.main();self.assertTrue(journal.read_bytes().startswith(prefix))
             self.assertEqual(calls,['generated','infrastructure','infrastructure','tail'])
             summary=json.loads((out/'construct.summary.json').read_text())

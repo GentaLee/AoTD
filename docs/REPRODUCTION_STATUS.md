@@ -4,6 +4,8 @@
 
 **当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、正式一轮训练和完整评测尚未完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
 
+**最新故障状态：** 已修复正式 full 在第 2,564 个样本遇到的 OWLv2 长文本越界。69 项 CPU 回归、精确失败查询的真实模型回放均通过；首段无损推进至 3,004 条、连续构建约 23 分钟，受控中断后原 8 个保活 worker 全部恢复。同一命令随后续接至 **3,075 条**，本轮共新增 **511 条**，新增运行级错误和已完成样本重复执行均为 0（截至 `2026-11-07T02:16:16Z`），任务继续运行。完整三源 CoT、学生训练和完整评测尚未完成。故障、旧进度保护和本轮验证状态见 [开发记录](DEVELOPMENT_LOG.md)。
+
 ## 1. 协议与数据范围
 
 配置由 [sources.json](../config/construction/sources.json) 驱动，协议 ID 为 `five-source-valid-media-no-anetqa-v1`。
@@ -49,6 +51,8 @@ NExT-QA 原标注存在同一个 `video_qid=3617262562_2` 对应不同问题的�
 
 | 验证 | 已测结果 | 适用边界 |
 |---|---|---|
+| 本轮工具边界和恢复回归 | 69 项 CPU 测试通过，9.391 秒；真实 detector 长查询前向通过，97→16 token、结束 token 和有限输出已核验 | 首次未提交 checkpoint 从零重训明确记录，与完整断点恢复区分 |
+| 本轮 full 观察与中断 | 2,564 → 3,004 后受控中断，退出 143 后原 8 个保活 worker 同身份恢复；同目录续接至 3,075，新增运行级错误与重复执行均为 0，两段旧前缀 SHA 保持 | 当前仍在全量制数；不是全量训练完成 |
 | 教师前向 | 程序生成、视频问答、目标检测、时间定位、答案选择、转换和筛选均通过 | 有限小样本功能验证 |
 | 真实 Agent 链路 | 4 道 train QA：3 次程序执行成功、1 次非代码回复被拒；1 条答对并完成转换、筛选和 CoT 导出 | 不是全量准确率或合格率 |
 | 正式 batch 配置短训练 | 4 卡、microbatch 1、累积 12、有效 batch 48、ZeRO-2、BF16；2 步 loss `15.7559` / `15.8379`，有限梯度 | 96 条受控重复 QA，只验证训练配置 |
@@ -58,6 +62,8 @@ NExT-QA 原标注存在同一个 `video_qid=3617262562_2` 对应不同问题的�
 | 新布局回归 | 两个独立环境的 10 项原始回归通过；五源覆盖、排除来源、时间节流和最终即时输出行为检查通过 | 最终进度版本已重新执行实际训练、评测和保存重载 smoke |
 
 [历史证据字段](../reproduction/evidence/verified_status.json)、[仓库布局检查](../reproduction/evidence/repository_integration.json)随代码保存。最终复测与异常恢复记录保存在 `reproduction/evidence/current_validation.json`，仅实际完成的项目标记 PASS。原始逐题日志、轨迹、训练数值和进程审计保留在挂载卷，公开证据只导出不含站点信息的必要字段。
+
+最新失败样本为 `4563040340_0`：工具接收到的长对象描述经 OWLv2 tokenizer 编码为 97 token，超过加载模型的 16 token 上限。Transformers `4.49.0` 的 [processor 默认值](https://github.com/huggingface/transformers/blob/v4.49.0/src/transformers/models/owlv2/processing_owlv2.py#L45-L55)仅设置 padding，原适配器未显式截断，因此异常发生在真实模型文本编码器内。现改为读取模型实际位置编码上限并保留结束 token，同时在模型调用前拒绝空时间选择和无效裁剪。这次修复不删除原始 QA，也不把真实模型 `RuntimeError` 静默改为普通拒绝。
 
 训练修正保留原版 padding-only label collator 的监督范围，未暗中改成 answer-only loss。设置 `model.accepts_loss_kwargs=False`，避免 Transformers 对 `**kwargs` 的能力推断导致 microbatch mean CE 在累积时缩放错误；同时记录真实运行引擎、world size、ZeRO stage、有效 batch 和逐步数值。
 
@@ -89,7 +95,9 @@ bash run_aotd_full.sh
 
 默认 `AOTD_PROGRESS_INTERVAL_SECONDS=30`，允许 10–60 秒。阶段完成立即输出，不必等下个间隔。训练展示 step、总步数、百分比、已用时间、预计剩余时间和 loss；评测展示题目进度与预计剩余时间。逐步数值、逐题 JSONL 和失败信息完整保留。默认不逐题、逐 token 刷屏，`AOTD_VERBOSE=1` 可查看评测细节。
 
-制数 JSONL 逐条落盘，可恢复中断尾部并按输入、提示词、代码和模型指纹检查兼容性。针对已审核的错误分类修复，提供保留原始前缀和旧 manifest 的明确迁移。学生训练默认每 100 步保存完整 checkpoint，保留最近 2 个，恢复 optimizer/scheduler/RNG/Trainer/DeepSpeed 状态；评测按已完成题目的持久前缀续跑。同一 full 命令默认复用最新受管理运行，`--new-run` 创建新训练/评测目录，`--resume RUN_DIR` 指定目录。详细恢复边界和实测结果见 [开发记录](DEVELOPMENT_LOG.md)。
+制数 JSONL 逐条落盘，可恢复中断尾部并按输入、提示词、驱动、IO、实际工具源文件与模型指纹检查兼容性。针对精确审核过的版本指纹提供保留原始前缀和旧 manifest 的迁移，不允许任意改动混用旧结果；失败结果保留当次程序与部分轨迹。此次待恢复的旧 journal 前缀为 3,466,004 字节，SHA256 `1645c76b613b2c0e3f225b99e1cf9ceb255f05f3443a88e12f26f0d7df9f0ece`。
+
+正式训练池先在暂存目录生成并校验，manifest 最后发布；中断后按原输入和文件哈希补齐发布，不会因只存在部分 JSON/YAML 就误判为完整训练输入。学生训练默认每 100 步保存完整 checkpoint，保留最近 2 个，恢复 optimizer/scheduler/RNG/Trainer/DeepSpeed 状态；评测按已完成题目的持久前缀续跑。同一 full 命令默认复用最新受管理运行，`--new-run` 创建新训练/评测目录，`--resume RUN_DIR` 指定目录。详细恢复边界和实测结果见 [开发记录](DEVELOPMENT_LOG.md)。
 
 ## 6. 目录、配置与结果
 
@@ -122,6 +130,9 @@ export AOTD_PROGRESS_INTERVAL_SECONDS=30
 - [x] EgoQA 原始 7,813 条全部完成 32 帧解码审计，16 条缺失与 6 条无效媒体按固定清单排除，保留 7,791 条。
 - [x] 五源统一制数输入检查通过：133,654 条有效 QA，媒体缺失 0，教师依赖检查通过。
 - [x] 最终进度输出版本的训练/评测 smoke、真实 Agent 链路通过；错误、SIGTERM、SIGKILL watchdog 路径恢复原 8 个保活进程。
+- [x] 第二次 full 故障定位到 OWLv2 超长文本输入；边界、来源迁移、训练池发布与首次 checkpoint 恢复的 69 项 CPU 回归通过，精确失败查询真实模型前向通过。
+- [x] 本轮精确失败查询真实模型前向、正式 full 2,564→3,004 的无损推进，以及受控中断后原 8 worker 恢复均通过。
+- [x] 本轮中断后同目录继续新增 71 条至 3,075；3,004 条完整终态前缀不变、重复执行 0，新增运行级错误 0。
 - [ ] 三个启用 CoT 的来源完成完整 Agent→转换→筛选，记录成功、拒绝、错误及合格数。
 - [ ] Instruct/AoTD 各训练完整 1 epoch，记录步数、loss、资源峰值和 checkpoint。
 - [ ] 作者/Base/Instruct/AoTD 同一完整划分评测，报告逐题及分组指标。
