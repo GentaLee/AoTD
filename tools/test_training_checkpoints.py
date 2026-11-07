@@ -6,6 +6,8 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'distillation'))
 from aotd_checkpoints import (CHECKPOINT_MARKER, atomic_json, choose_checkpoint,
@@ -58,6 +60,7 @@ class CheckpointTests(unittest.TestCase):
 
     def test_truncated_state_never_silently_resumes(self):
         path=self.checkpoint(1)
+        atomic_json(self.root/'training_provenance.json',self.identity)
         (path/'rng_state_2.pth').write_bytes(b'x')
         with self.assertRaisesRegex(ValueError,'Incomplete checkpoint file'):validate_checkpoint(path,self.identity)
         with self.assertRaisesRegex(ValueError,'No complete compatible'):choose_checkpoint(self.root,self.identity)
@@ -72,6 +75,77 @@ class CheckpointTests(unittest.TestCase):
     def test_inference_weights_are_not_a_resumable_training_checkpoint(self):
         path=self.root/'checkpoint-1';self.weights(path)
         with self.assertRaisesRegex(ValueError,'No complete compatible'):choose_checkpoint(self.root,self.identity)
+
+    def test_first_unpublished_save_with_verified_provenance_restarts_from_zero_and_preserves_bytes(self):
+        path=self.checkpoint(1,publish=False)
+        original={str(file.relative_to(path)):file.read_bytes() for file in path.rglob('*') if file.is_file()}
+        atomic_json(self.root/'training_provenance.json',self.identity)
+        self.assertIsNone(choose_checkpoint(self.root,self.identity))
+        self.assertFalse(path.exists())
+        recovery=json.loads((self.root/'checkpoint_restart.json').read_text())
+        self.assertEqual(recovery['restart_from_global_step'],0)
+        self.assertIsNone(recovery['resumed_from_checkpoint'])
+        self.assertEqual(recovery['status'],'restart_from_zero')
+        preserved=Path(recovery['checkpoints']['checkpoint-1']['destination'])
+        self.assertEqual(original,{str(file.relative_to(preserved)):file.read_bytes()
+                                   for file in preserved.rglob('*') if file.is_file()})
+        # Repeated startup sees no committed checkpoint and does not move
+        # history again or fabricate a resumed global step.
+        self.assertIsNone(choose_checkpoint(self.root,self.identity))
+        self.assertEqual(len(list((self.root/'checkpoint_history').iterdir())),1)
+
+    def test_wrong_provenance_does_not_quarantine_unpublished_state(self):
+        path=self.checkpoint(1,publish=False)
+        changed=copy.deepcopy(self.identity);changed['sources'][0]['sha256']='other'
+        atomic_json(self.root/'training_provenance.json',changed)
+        with self.assertRaisesRegex(ValueError,'No complete compatible'):
+            choose_checkpoint(self.root,self.identity)
+        self.assertTrue(path.is_dir())
+        self.assertFalse((self.root/'checkpoint_history').exists())
+
+    def test_missing_provenance_does_not_quarantine_unpublished_state(self):
+        path=self.checkpoint(1,publish=False)
+        with self.assertRaisesRegex(ValueError,'No complete compatible'):
+            choose_checkpoint(self.root,self.identity)
+        self.assertTrue(path.is_dir())
+        self.assertFalse((self.root/'checkpoint_history').exists())
+
+    def test_corrupt_complete_marker_is_never_reclassified_as_unpublished(self):
+        path=self.checkpoint(1)
+        atomic_json(self.root/'training_provenance.json',self.identity)
+        (path/CHECKPOINT_MARKER).write_text('{torn completion marker')
+        with self.assertRaisesRegex(ValueError,'No complete compatible'):
+            choose_checkpoint(self.root,self.identity)
+        self.assertTrue(path.is_dir())
+        self.assertFalse((self.root/'checkpoint_history').exists())
+
+    def test_four_rank_selection_quarantines_first_unpublished_save_only_once(self):
+        path=self.checkpoint(1,publish=False)
+        atomic_json(self.root/'training_provenance.json',self.identity)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            selected=list(pool.map(lambda _:choose_checkpoint(self.root,self.identity),range(4)))
+        self.assertEqual(selected,[None]*4)
+        self.assertFalse(path.exists())
+        self.assertEqual(len(list((self.root/'checkpoint_history').iterdir())),1)
+
+    def test_interrupted_quarantine_itself_finishes_on_next_start(self):
+        path=self.checkpoint(1,publish=False)
+        atomic_json(self.root/'training_provenance.json',self.identity)
+        original=(path/'model.safetensors').read_bytes()
+        replace=Path.replace
+        def interrupted(source,target):
+            result=replace(source,target)
+            if source==path:raise KeyboardInterrupt('fixture kill after atomic checkpoint directory move')
+            return result
+        with patch.object(Path,'replace',interrupted):
+            with self.assertRaises(KeyboardInterrupt):choose_checkpoint(self.root,self.identity)
+        self.assertFalse(path.exists())
+        self.assertIsNone(choose_checkpoint(self.root,self.identity))
+        recovery=json.loads((self.root/'checkpoint_restart.json').read_text())
+        self.assertEqual(recovery['status'],'restart_from_zero')
+        preserved=Path(recovery['checkpoints']['checkpoint-1']['destination'])
+        self.assertEqual((preserved/'model.safetensors').read_bytes(),original)
+        self.assertEqual(len(list((self.root/'checkpoint_history').iterdir())),1)
 
     def test_completed_phase_needs_target_step_artifacts_and_same_identity(self):
         self.weights(self.root)

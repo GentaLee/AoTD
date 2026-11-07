@@ -11,6 +11,18 @@ class GeneratedProgramError(ValueError):
     """A Python error originating in the generated program, not a model/tool."""
 
 
+CODE_KEYS = ('driver_sha256', 'io_sha256', 'tool_sources_sha256')
+
+
+def tool_sources_sha256(agent):
+    """Bind the executed tools and their local prompts, not only the driver."""
+    agent = Path(agent)
+    paths = sorted({*agent.rglob('*.py'), *agent.rglob('*.prompt'),
+                    *agent.glob('configs/*.yaml')})
+    return {str(path.relative_to(agent)): sha256(path) for path in paths
+            if '__pycache__' not in path.parts}
+
+
 def execute_program(compiled, namespace, video, query, answers):
     try:
         exec(compiled, namespace)
@@ -30,7 +42,7 @@ def reviewed_code_migration(previous, current, policy_path):
     policy_path = Path(policy_path)
     if not policy_path.is_file():
         return None
-    keys = ('driver_sha256', 'io_sha256')
+    keys = CODE_KEYS
     mutable = {*keys, 'input_sha256', 'input_bytes', 'input_revisions', 'code_migrations'}
     fixed = lambda value: {key: item for key, item in value.items() if key not in mutable}
     if fixed(previous) != fixed(current):

@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from configs import config
 from torchvision import transforms
-import cv2
 import json
 from collections import Counter
 import os
@@ -12,6 +11,9 @@ cot_name = config.cot['save_cot_dir']
 
 class VideoClip:
     def __init__(self, video, start=None, end=None, parent_start=None,fps=30, clip_len=1, trimmed=False):
+        if (not isinstance(video, torch.Tensor) or video.ndim != 4
+                or video.shape[-1] != 3 or any(size == 0 for size in video.shape)):
+            raise ValueError('VideoClip requires nonempty frames in THWC format with three channels')
         if start is None and end is None:
             self.video = video
             self.start = 0
@@ -30,8 +32,12 @@ class VideoClip:
                     start = 0
                 if end is None:
                     end = video.shape[0]
+            parent_start = 0 if parent_start is None else parent_start
             self.start = start + parent_start
             self.end = end + parent_start
+
+        if not self.video.shape[0] or self.end <= self.start:
+            raise ValueError('Temporal selection produced an empty or inverted video interval')
 
         self.num_frames = self.video.shape[0]
         self.fps = fps
@@ -353,20 +359,24 @@ def remove_duplicates_preserve_order(input_list):
 
 
 def crop(frame: torch.Tensor, coordinate: torch.Tensor) -> torch.Tensor:
-    left, lower, right, upper = coordinate[:4]
-    left = int(left)
-    lower = int(lower)
-    right = int(right)
-    upper = int(upper)
+    left, lower, right, upper = [float(value) for value in coordinate[:4]]
+    if (not all(np.isfinite(value) for value in [left, lower, right, upper])
+            or right <= left or upper <= lower):
+        raise ValueError('Detection crop requires finite, ordered, nonempty coordinates')
+    left, lower, right, upper = map(int, [left, lower, right, upper])
 
     height = frame.shape[1]
     width = frame.shape[2]
 
     if config.crop_larger_margin:
-        left = max(0, left - 10)
-        lower = max(0, lower - 10)
-        right = min(width, right + 10)
-        upper = min(height, upper + 10)
+        left -= 10
+        lower -= 10
+        right += 10
+        upper += 10
+    left, right = max(0, left), min(width, right)
+    lower, upper = max(0, lower), min(height, upper)
+    if right <= left or upper <= lower:
+        raise ValueError('Detection crop does not intersect the video frame')
     cropped_frame = frame[:, frame.shape[1]-upper:frame.shape[1]-lower, left:right]
     resize_transform = transforms.Resize(size=(224, 224))
     cropped_frame = resize_transform(cropped_frame)

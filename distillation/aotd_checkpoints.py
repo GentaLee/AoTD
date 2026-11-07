@@ -4,6 +4,7 @@ Resume requires optimizer/scheduler/RNG state, not only inference weights.
 The completion marker is published after all distributed ranks finish saving.
 """
 import argparse
+import fcntl
 import hashlib
 import json
 from pathlib import Path
@@ -148,6 +149,46 @@ def validate_checkpoint(folder, identity):
 
 def choose_checkpoint(output, identity, requested='auto'):
     output=Path(output)
+    output.mkdir(parents=True,exist_ok=True)
+    # Every distributed rank selects a checkpoint before constructing Trainer.
+    # Serialize recovery so only one rank moves an incomplete save to history.
+    with (output/'.checkpoint-selection.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        if requested=='auto':finish_pending_checkpoint_recovery(output,identity)
+        return _choose_checkpoint(output,identity,requested)
+
+
+def finish_checkpoint_recovery(output, history, recovery):
+    """Finish directory moves even if the selector itself was interrupted."""
+    for name,item in recovery['checkpoints'].items():
+        if not re.fullmatch(r'checkpoint-\d+',name):raise ValueError('Invalid checkpoint recovery name')
+        path=output/name;destination=Path(item['destination'])
+        if destination.resolve()!=((history/name).resolve()):raise ValueError('Invalid checkpoint recovery destination')
+        if path.exists():
+            if destination.exists() or (path/CHECKPOINT_MARKER).exists() or (path/CHECKPOINT_MARKER).is_symlink():
+                raise ValueError('Checkpoint changed during incomplete-save recovery; preserving files')
+            path.replace(destination)
+        elif not destination.is_dir():
+            raise ValueError('Interrupted checkpoint recovery directory is missing; preserving history')
+        item['moved']=True
+        atomic_json(history/'recovery.json',recovery)
+    recovery['status']='restart_from_zero'
+    atomic_json(history/'recovery.json',recovery)
+    atomic_json(output/'checkpoint_restart.json',recovery)
+
+
+def finish_pending_checkpoint_recovery(output, identity):
+    for marker in sorted((output/'checkpoint_history').glob('incomplete-*/recovery.json')):
+        recovery=json.loads(marker.read_text())
+        if recovery.get('status')!='quarantining':continue
+        provenance=output/'training_provenance.json'
+        if (recovery.get('identity')!=identity or not provenance.is_file()
+                or json.loads(provenance.read_text())!=identity):
+            raise ValueError('Interrupted checkpoint recovery provenance changed; preserving files')
+        finish_checkpoint_recovery(output,marker.parent,recovery)
+
+
+def _choose_checkpoint(output, identity, requested):
     if requested=='none':
         if (output/COMPLETE_MARKER).exists() or list(output.glob('checkpoint-*')):
             raise ValueError('Refusing to restart over existing training state; use a fresh output directory')
@@ -164,7 +205,27 @@ def choose_checkpoint(output, identity, requested='auto'):
             problems.append(f'{path.name}: {exc}');continue
         if problems:print('[checkpoint] ignoring incomplete newer checkpoints: '+'; '.join(problems),flush=True)
         return path
-    if candidates:raise ValueError('No complete compatible checkpoint; preserving files: '+'; '.join(problems))
+    if candidates:
+        provenance=output/'training_provenance.json'
+        verified=(provenance.is_file() and json.loads(provenance.read_text())==identity)
+        unpublished=all(path.is_dir() and not (path/CHECKPOINT_MARKER).exists()
+                        and not (path/CHECKPOINT_MARKER).is_symlink() for path in candidates)
+        if verified and unpublished:
+            # No committed optimizer state exists, so there is nothing to
+            # resume. Preserve the interrupted first save and explicitly
+            # restart from step zero under the same verified provenance.
+            history=output/'checkpoint_history'/f'incomplete-{time.time_ns()}-{os.getpid()}'
+            history.mkdir(parents=True)
+            recovery=dict(schema=1,reason='No complete checkpoint existed; interrupted unpublished saves preserved',
+                          identity=identity,restart_from_global_step=0,resumed_from_checkpoint=None,
+                          status='quarantining',checkpoints={path.name:dict(destination=str(history/path.name),
+                              moved=False) for path in candidates},validation_errors=problems)
+            atomic_json(history/'recovery.json',recovery)
+            atomic_json(output/'checkpoint_restart.json',recovery)
+            finish_checkpoint_recovery(output,history,recovery)
+            print(f'[checkpoint] no committed checkpoint; restarting from step 0; interrupted saves preserved: {history}',flush=True)
+            return None
+        raise ValueError('No complete compatible checkpoint; preserving files: '+'; '.join(problems))
     return None
 
 
