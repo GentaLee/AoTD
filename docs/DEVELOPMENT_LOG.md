@@ -74,4 +74,4 @@ bash run_aotd_full.sh --check
 
 ## 6. 集成方式
 
-新建集成分支 `integration/offline-reproduction`。原 [PR #2](https://github.com/GentaLee/AoTD/pull/2) 已改为指向该分支并合入；本次修复使用独立 PR 指向同一分支。两个变更在集成分支汇合，未直接合入 `main`。
+新建集成分支 `integration/offline-reproduction`。原 [PR #2](https://github.com/GentaLee/AoTD/pull/2) 已改为指向该分支并合入；本次修复使用 [PR #3](https://github.com/GentaLee/AoTD/pull/3) 指向同一分支。两个变更在集成分支汇合，未直接合入 `main`。
