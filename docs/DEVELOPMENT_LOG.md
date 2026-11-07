@@ -88,8 +88,17 @@ OWLv2 processor 测试覆盖超长描述、长短混合的多个对象、短描�
 | 本轮实际运行验证 | 当前状态 |
 |---|---|
 | 精确失败对象查询的真实 OWLv2 前向，核对 97→16 token、结束 token 和有限输出 | PASS；真实模型 logits/boxes 均为有限值，结束 token 保留；退出后原 8 个保活 worker 恢复 |
-| 从正式 full 入口恢复，重试失败样本并持续越过失败位置 | 待完成；尚不声明长时间运行稳定 |
-| 原 journal 前缀 SHA、保活进程与新增错误核验 | 待上述实际运行完成后确认 |
+| 从正式 full 入口恢复，重试失败样本并持续越过失败位置 | 首段 PASS：2,564 → 3,004，新增 440 个唯一样本；构建阶段连续运行约 23 分钟，新增运行级错误 0 |
+| 原 journal 前缀 SHA、保活进程与新增错误核验 | 原 3,466,004 字节前缀 SHA 不变；4 工作设备 + 4 个就绪保活 worker；受控中断退出 143 后原 8 个同身份 worker 全部活动，重复 worker 为 0 |
+| 同一 full 命令中断后续跑 | PASS：从 3,004 条续接至 3,075 条，新增 71 条、运行级错误 0、终态样本重复执行 0；完整重启前 4,159,991 字节前缀 SHA 保持 |
+
+截至 `2026-11-07T02:16:16Z`，相对本轮原基线共新增 **511** 个唯一样本，当前索引为 **3,075** 条（执行成功 2,436、拒绝 639、运行级错误 0），正式 full 仍在后台继续制数，4 个工作设备和 4 个就绪保活 worker 正常。此观察不是完整三源 CoT、正式训练或完整评测完成标记。
+
+原失败样本重试后不再触发检测器的维度错误，但生成程序随后对整数调用 `.items()`，因此按生成程序错误记录为 `rejected`。这不是合格 CoT，也没有伪造程序执行成功。构建阶段已有其他新样本成功执行，原始 QA 不删除。
+
+仓库中的 [真实模型诊断入口](../tools/validate_owlv2_replay.py)已在正常保活调度下实测，使用保存的原对象查询和原视频帧。原查询 SHA 为 `98a1e7c407833aebfe8340558bdfe011fb08888fe42aaeae3b1e266a4f300520`，97→16 token、EOS 和模型输出有限性均通过。诊断 JSON 和 full 观察摘要见 [tool_boundary_validation.json](../reproduction/evidence/tool_boundary_validation.json)。
+
+本轮资源观察是瞬时采样：在约 100/250/440 个新增样本处，构建进程 RSS 约为 5.03/5.41/5.51 GiB，所在 cgroup 内存约为 13.12/13.95/14.25 GiB，上限为 1,760 GiB，OOM/OOM-kill 计数为 0。没有内核 `memory.peak` 文件，不能把采样值称为真实峰值或据此保证剩余全部数据的资源使用。
 
 ### 上一轮历史：完整 checkpoint 和评测续跑
 
@@ -110,4 +119,4 @@ OWLv2 processor 测试覆盖超长描述、长短混合的多个对象、短描�
 
 ## 6. 集成方式
 
-新建集成分支 `integration/offline-reproduction`。原 [PR #2](https://github.com/GentaLee/AoTD/pull/2) 已改为指向该分支并合入；本次修复使用 [PR #3](https://github.com/GentaLee/AoTD/pull/3) 指向同一分支。两个变更在集成分支汇合，未直接合入 `main`。
+集成分支为 `integration/offline-reproduction`。原 [PR #2](https://github.com/GentaLee/AoTD/pull/2) 与 checkpoint 修复 [PR #3](https://github.com/GentaLee/AoTD/pull/3) 已合入；本轮视觉工具边界及恢复修复见 [PR #4](https://github.com/GentaLee/AoTD/pull/4)，目标为同一集成分支。未直接合入 `main`。
