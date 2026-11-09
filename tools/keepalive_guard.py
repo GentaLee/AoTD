@@ -84,15 +84,19 @@ def keepalive_roots(script):
     return roots
 
 
-def gpu_pids():
-    run = subprocess.run(
-        ["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader,nounits"],
-        check=True, text=True, capture_output=True, timeout=15,
-    )
-    values = [line.strip() for line in run.stdout.splitlines() if line.strip()]
-    if any(not value.isdecimal() for value in values):
-        raise RuntimeError(f"Cannot interpret nvidia-smi process list: {values}")
-    return {int(value) for value in values}
+def gpu_pids(scope=None):
+    if scope is None:
+        output=subprocess.check_output(['nvidia-smi','--query-compute-apps=pid',
+                                        '--format=csv,noheader,nounits'],text=True,timeout=15)
+        return {int(x.strip()) for x in output.splitlines() if x.strip()}
+    devices=subprocess.check_output(['nvidia-smi','--query-gpu=index,uuid',
+                                     '--format=csv,noheader,nounits'],text=True,timeout=15)
+    selected={line.split(',')[1].strip() for line in devices.splitlines()
+              if line.split(',')[0].strip() in scope}
+    output=subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid,pid',
+                                    '--format=csv,noheader,nounits'],text=True,timeout=15)
+    return {int(line.split(',')[1].strip()) for line in output.splitlines()
+            if line.split(',')[0].strip() in selected}
 
 
 def gpu_status():
@@ -189,6 +193,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keepalive-script", required=True)
     parser.add_argument("--state-dir", required=True)
+    parser.add_argument("--gpus", default=os.environ.get("AOTD_GUARD_GPUS"),
+                        help="Physical GPU indices exclusively owned by this keepalive group")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -211,11 +217,17 @@ def main():
     if root is None:
         raise RuntimeError('Original keep-alive must already be running; refusing a run without a workload to restore')
     allowed = tree(root["pid"], processes()) if root else set()
-    original_gpu_pids = gpu_pids()
+    scope=args.gpus.split(",") if args.gpus else None
+    if scope is not None and (not scope or len(scope)!=len(set(scope))):
+        raise ValueError("Invalid GPU scope")
+    original_gpu_pids = gpu_pids(scope)
     visible = subprocess.check_output(['nvidia-smi','--query-gpu=index',
                                       '--format=csv,noheader,nounits'],text=True,timeout=15).split()
-    if len(visible)!=8 or len(original_gpu_pids)!=8:
-        raise RuntimeError('Expected eight visible devices and eight original keep-alive GPU workers before pausing')
+    expected=scope if scope is not None else visible
+    if not set(expected).issubset(visible) or len(original_gpu_pids)!=len(expected):
+        raise RuntimeError('Expected one original keepalive GPU worker per owned device before pausing')
+    if scope is not None and (gpu_pids()-original_gpu_pids)&allowed:
+        raise RuntimeError('Keepalive root also owns GPUs outside the requested scope')
     if any((p:=proc(pid)) is None or p['state'] in ('T','t','Z','X') for pid in original_gpu_pids):
         raise RuntimeError('Original keep-alive workers must all be active before pausing')
     other = original_gpu_pids - allowed
@@ -228,7 +240,7 @@ def main():
     record = state_dir / f"guard-{stamp}-{os.getpid()}.json"
     recovery_log = state_dir / f"recovery-{stamp}-{os.getpid()}.log"
     state = {"guard_pid": os.getpid(), "run_id": uuid.uuid4().hex, "paused": [], "command": None,
-             "keepalive_script": str(Path(args.keepalive_script).resolve()), "status": "preparing"}
+             "gpus": scope, "keepalive_script": str(Path(args.keepalive_script).resolve()), "status": "preparing"}
     read_fd, write_fd = os.pipe()
     watchdog_pid = os.fork()
     if watchdog_pid == 0:
@@ -297,7 +309,7 @@ def main():
             return exit_code
         if root:
             allowed |= tree(root["pid"], processes())
-        if gpu_pids() - allowed:
+        if gpu_pids(scope) - allowed:
             raise RuntimeError("Another GPU process appeared during the pause")
         state["status"] = "paused"
         update()
@@ -319,6 +331,7 @@ def main():
                     os._exit(125)
                 env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1",
                            AOTD_GUARD_RUN_ID=state["run_id"])
+                if scope is not None: env["CUDA_VISIBLE_DEVICES"]=",".join(scope)
                 os.execvpe(command[0], command, env)
             except BaseException as exc:
                 print(f"[keepalive-guard] command exec failed: {exc}", file=sys.stderr, flush=True)

@@ -1,0 +1,17 @@
+{
+  "transfer": {
+    "preserved": 32,
+    "newly_processed": 32,
+    "unique_results": 64,
+    "prefix_sha256": "b85644c913367243240c0757cf62f1d63d8108657c75510e9196a431a6cb15bf",
+    "outputs_match": true
+  },
+  "filter": {
+    "preserved": 32,
+    "newly_processed": 32,
+    "unique_results": 64,
+    "prefix_sha256": "0e5be840b2738ebedbe39985de9b0148c6e522b03534cf2784dcd45aa10428ba",
+    "outputs_match": true
+  },
+  "status": "PASS"
+}

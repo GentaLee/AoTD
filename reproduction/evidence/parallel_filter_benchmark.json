@@ -1,0 +1,15 @@
+{
+  "four": {
+    "wall_seconds": 52.70083617698401,
+    "warm_seconds": 22.794965505599976,
+    "rows": 1024
+  },
+  "serial": {
+    "wall_seconds": 81.44733306602575,
+    "warm_seconds": 60.58969235420227,
+    "rows": 1024
+  },
+  "status": "PASS",
+  "identical_verdicts": true,
+  "warm_speedup": 2.658029569701142
+}

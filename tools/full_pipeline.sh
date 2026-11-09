@@ -12,7 +12,7 @@ if [[ "$STAGE" == orchestrate ]]; then
             --state-dir "$RUN/train_phase" -- bash "${BASH_SOURCE[0]}" --train-stage
     fi
     mkdir -p "$RUN/eval_phase"
-    "$PY" -B "$ROOT/tools/with_spare_keepalive.py" --mode eval-only --keepalive-script "$KEEP" \
+    "$PY" -B "$ROOT/tools/with_spare_keepalive.py" --mode all --keepalive-script "$KEEP" \
         --state-dir "$RUN/eval_phase" -- bash "${BASH_SOURCE[0]}" --eval-stage
     exit 0
 fi
@@ -47,17 +47,9 @@ fi
 [[ "$STAGE" == --eval-stage ]] || { echo "Invalid internal stage: $STAGE"; exit 2; }
 SPLIT=${AOTD_EVAL_SPLIT:-val}
 VIDEO=${AOTD_VIDEO_DIR:-$ROOT/data/nextqa/NExTVideo}
-for tag in author base instruct aotd; do
-    case "$tag" in
-        author) MODEL="$ROOT/models/AoTD-7B-author";;
-        base) MODEL="$ROOT/models/LLaVA-7B-base";;
-        *) [[ ${AOTD_FULL_MODE:-all} == all ]] || continue; MODEL="$RUN/${tag}_s42";;
-    esac
-    echo "[full evaluation] $tag $SPLIT: every question"
-    CUDA_VISIBLE_DEVICES=${AOTD_EVAL_GPU:-0} "$PY" -u "$ROOT/evaluation/eval_nextqa.py" \
-        --model_path "$MODEL" --data_dir "$ROOT/data/nextqa/$SPLIT.csv" --video_dir "$VIDEO" \
-        --split "$SPLIT" --attn_implementation sdpa --save_dir "$RUN/${tag}_${SPLIT}_full.json"
-done
+TAGS=author,base,instruct,aotd
+[[ ${AOTD_FULL_MODE:-all} == all ]] || TAGS=author,base
+"$PY" -B "$ROOT/tools/parallel_evaluations.py" --run "$RUN" --tags "$TAGS"
 "$PY" -B - <<'PY'
 import os,json
 from pathlib import Path

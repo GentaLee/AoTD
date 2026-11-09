@@ -1,3 +1,17 @@
+# 2026-11-09：后续阶段并行与独立借卡
+
+审计发现转换、筛选均为单卡逐条处理，四组评测依次执行；训练已经是四卡分布式，两个实验依次使用完整四卡。现将转换与筛选接入同一个有界、多进程、单写者的持久化调度器；四组评测每卡一个模型并行，仍各自保留逐题 journal。训练协议、有效 batch 48、两个训练目标与 checkpoint 逻辑不变。
+
+真实对照：64 条转换结果逐条一致，warm 时间 218.38 → 73.93 秒（2.95 倍）；1,024 条筛选判定全部一致，60.59 → 22.79 秒（2.66 倍）。小样本的总耗时受加载影响，原始数据同时记录 wall/warm 时间。转换、筛选分别从 32 条真实持久记录恢复，只新增剩下的 32 条，旧字节前缀保留，结果与对照一致。两份已存在的评测模型各跑 8 条真实问题，并验证重复启动跳过完成结果；学生模型尚未训练，因此不把这项 smoke 写成四份最终模型的完整评测。
+
+将共享保活 supervisor 拆成两个独立组。`keepalive_guard --gpus` 只验证、暂停、恢复对应组，拒绝跨组 supervisor；工作组和借用组使用不同锁与清理标签。`run_spare_task.sh` 提供 4–7 卡借用入口。实际借卡任务正常完成、错误码 17 退出，以及借卡 guard 被 SIGKILL 后，后四卡恢复保活；主任务 PID 和四个工作 GPU 进程保持不变，STAR 仍从 22,027 推进到 22,048 条。阶段切换期间也实测了借卡任务继续执行。CPU、内存与磁盘仍为共享资源，详见 [借卡约束与命令](SPARE_GPU_TASKS.md)。
+
+77 项回归测试通过。正式任务已从原断点恢复并继续运行，运行级错误为 0。进度现在在加载期间显示已恢复数量，ETA 不再把冷加载计入样本处理速率。
+
+测量证据：[转换](../reproduction/evidence/parallel_text_benchmark.json)、[筛选](../reproduction/evidence/parallel_filter_benchmark.json)、[真实部分断点恢复](../reproduction/evidence/parallel_text_resume.json)、[评测 smoke](../reproduction/evidence/parallel_evaluation_smoke.json)、[借卡隔离](../reproduction/evidence/spare_gpu_isolation.json)、[估时采样](../reproduction/evidence/parallel_eta_snapshot.json)。估时采样时 STAR 为 22,232/45,731，最近 128 条约 1.49 秒/完成记录；AGQA 随机 64 条约 1.28 秒/完成记录。两者点估计约 9.7 小时、8.9 小时；题型与视频不同，不能把抽样吞吐当作完成时间保证。全量训练和全量评测尚未结束。
+
+---
+
 # 2026-11-09：四卡独立样本并行
 
 全量入口默认 `AOTD_CONSTRUCTION_WORKERS=4`，以 spawn 启动四个隔离进程，每卡常驻完整教师栈、同时处理一条样本。主进程负责唯一 journal 写入，保留逐条 fsync、运行级错误停机和保活恢复机制。教师、提示词、贪心解码、拒绝与质量筛选规则未变。并行改变完成顺序，不改变样本 ID；最多四条未提交任务会在中断后重做。

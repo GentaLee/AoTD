@@ -17,7 +17,7 @@ while (($#)); do
             echo 'Default: independently train Instruct and AoTD from Base for one full epoch, then evaluate author/base/instruct/aotd on the complete NExT-QA split.'
             echo 'Four GPUs, ZeRO-2, BF16, microbatch 1, accumulation 12, effective batch 48. No smoke step/sample limits.'
             echo 'Construction: AOTD_CONSTRUCTION_WORKERS=4 independent single-device teacher stacks; set 1 for legacy serial placement.'
-            echo 'Training: four work GPUs + four keep-alive GPUs. Evaluation: one work GPU + seven keep-alive GPUs.'
+            echo 'Training: four work GPUs + four keep-alive GPUs. Evaluation: independent models concurrently on work GPUs; spare group remains independent.'
             echo '--check: validate inputs only; do not launch GPU workloads.'
             echo '--eval-only: full author and base evaluation, without training.'
             echo 'Inputs: AOTD_TRAIN_DATA (instruct.yaml/aotd.yaml and complete preprocessed QA/CoT/media), AOTD_VIDEO_DIR (ID.mp4 videos).'
@@ -33,6 +33,7 @@ done
 source "$ROOT/runtime_env.sh"
 case "$(findmnt -T "$ROOT" -n -o FSTYPE)" in overlay|tmpfs|ramfs|'') echo 'ERROR: persistent mounted storage required'; exit 2;; esac
 [[ -x "$ROOT/env/bin/python" ]] || { echo "Offline environment missing: run $ROOT/setup_offline.sh"; exit 2; }
+export AOTD_TEXT_WORKERS=${AOTD_TEXT_WORKERS:-4}
 export AOTD_CONSTRUCTION_WORKERS=${AOTD_CONSTRUCTION_WORKERS:-4}
 export AOTD_FULL_MODE="$MODE"
 export AOTD_EVAL_SPLIT=${AOTD_EVAL_SPLIT:-val}
@@ -77,4 +78,4 @@ echo '[full] Checking all training records and all evaluation media before pausi
 KEEP=${AOTD_KEEPALIVE_SCRIPT:-$ROOT/runtime/keep_alive/main.py}
 "$ROOT/env/bin/python" -B "$ROOT/tools/keepalive_guard.py" --keepalive-script "$KEEP" --state-dir "$ROOT/runtime/guard-state" -- \
     bash "$ROOT/tools/full_pipeline.sh"
-echo "[full] complete; original keep-alive restored; results=$AOTD_RUN_DIR"
+echo "[full] complete; owned keep-alive restored; independent spare group unchanged; results=$AOTD_RUN_DIR"

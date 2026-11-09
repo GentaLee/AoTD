@@ -10,7 +10,7 @@ import build_cot
 from construction_io import append_record, recover_journal, should_process
 
 
-def fake_worker(connection, gpu, output):
+def fake_worker(connection, gpu, output, stage="construct"):
     connection.send(('ready', None))
     while True:
         request = connection.recv()

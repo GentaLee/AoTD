@@ -31,18 +31,23 @@ class ProgressReporter:
     def __init__(self, stage, target, interval, statuses, saved):
         self.stage=stage;self.target=target;self.interval=interval
         self.started=time.monotonic();self.stop=threading.Event();self.lock=threading.Lock()
+        self.rate_started=None
         self.state=dict(processed=0,new=0,saved=saved,ok=statuses['ok'],rejected=statuses['rejected'],
                         errors=statuses['error'],current='initializing')
         self.thread=threading.Thread(target=self._run,daemon=True)
 
     def update(self, **values):
-        with self.lock:self.state.update(values)
+        with self.lock:
+            self.state.update(values)
+            if values.get('new',0)>0 and self.rate_started is None:
+                self.rate_started=time.monotonic()
 
     def _run(self):
         while not self.stop.wait(self.interval):
-            with self.lock:state=dict(self.state)
+            with self.lock:
+                state=dict(self.state);rate_started=self.rate_started
             elapsed=time.monotonic()-self.started
-            eta=f'{elapsed/state["new"]*max(self.target-state["processed"],0):.1f}s' if state['new'] else 'pending'
+            eta=f'{(time.monotonic()-rate_started)/(state["new"]-1)*max(self.target-state["processed"],0):.1f}s' if rate_started is not None and state["new"]>1 else 'pending'
             print(f'[build {self.stage}] {state["processed"]}/{self.target} '
                   f'({100*state["processed"]/max(self.target,1):.1f}%) saved={state["saved"]} '
                   f'ok={state["ok"]} rejected={state["rejected"]} errors={state["errors"]} '
@@ -238,6 +243,7 @@ def process_row(backend, row, trace_dir, timeout):
     sid = row["sample_id"]
     item = {key:value for key,value in row.items() if key not in {'status','error','traceback','seconds'}}
     before = time.monotonic()
+    item["started_at_unix"] = time.time()
     trace = trace_dir/(hashlib.sha256(sid.encode()).hexdigest()+'.txt')
     failure = None
     try:
@@ -261,16 +267,17 @@ def process_row(backend, row, trace_dir, timeout):
         if trace.is_file():
             item['execution_trace'] = trace.read_text()
     item['seconds'] = round(time.monotonic()-before, 3)
+    item['finished_at_unix'] = time.time()
     return item
 
 
-def construction_worker(connection, gpu, output):
+def construction_worker(connection, gpu, output, stage="construct"):
     # Spawn, never fork CUDA; each process owns its models, globals and SIGALRM.
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     try:
-        backend = ConstructionBackend(output)
+        backend = ConstructionBackend(output) if stage == "construct" else TextBackend(stage)
         connection.send(('ready', None))
         while True:
             request = connection.recv()
@@ -284,7 +291,7 @@ def construction_worker(connection, gpu, output):
         connection.close()
 
 
-def parallel_results(rows, output, trace_dir, timeout, gpus):
+def parallel_results(rows, output, trace_dir, timeout, gpus, stage="construct"):
     """Bounded one-in-flight request per GPU; the parent alone commits results."""
     rows = iter(rows)
     first = next(rows, None)
@@ -298,7 +305,7 @@ def parallel_results(rows, output, trace_dir, timeout, gpus):
         for index, gpu in enumerate(gpus):
             parent, child = context.Pipe()
             process = context.Process(target=construction_worker,
-                                      args=(child, gpu, str(output/'workers'/str(index))))
+                                      args=(child, gpu, str(output/'workers'/stage/str(index)), stage))
             process.start(); child.close()
             workers[parent] = [process, time.monotonic(), 'loading']
         exhausted = False
@@ -458,12 +465,13 @@ def run_stage(args):
                     backend = ConstructionBackend(args.output_dir) if args.stage == 'construct' else TextBackend(args.stage)
                 yield process_row(backend, row, trace_dir, args.timeout)
 
-        count = int(os.environ.get('AOTD_CONSTRUCTION_WORKERS', '1')) if args.stage == 'construct' else 1
+        count = int(os.environ.get('AOTD_CONSTRUCTION_WORKERS' if args.stage == 'construct' else 'AOTD_TEXT_WORKERS', '1'))
         gpus = os.environ.get('CUDA_VISIBLE_DEVICES', '0,1,2,3').split(',')
         if count < 1 or count > len(gpus) or len(set(gpus)) != len(gpus):
             raise ValueError('Invalid construction worker count / GPU selection')
         initial_saved = sum(not should_process(value,args.retry_errors) for value in done.values())
-        results = parallel_results(pending(), args.output_dir, trace_dir, args.timeout, gpus[:count]) if count > 1 else serial_results()
+        progress.update(processed=initial_saved)
+        results = parallel_results(pending(), args.output_dir, trace_dir, args.timeout, gpus[:count], args.stage) if count > 1 else serial_results()
         print(f'[construction scheduling] workers={count} resumed={initial_saved}', flush=True)
         try:
             for item in results:
