@@ -1,0 +1,42 @@
+{
+  "four": {
+    "summary": {
+      "stage": "construct",
+      "saved": 40,
+      "newly_processed": 40,
+      "statuses": {
+        "ok": 16,
+        "rejected": 24
+      },
+      "target_records": 40,
+      "correct": 2,
+      "accepted": 0,
+      "validation_limit": null,
+      "complete_without_errors": true
+    },
+    "model_ready_to_last_commit_seconds": 71.94788408279419,
+    "manifest_to_last_commit_seconds": 244.5112702846527,
+    "sum_sample_seconds": 270.645
+  },
+  "serial": {
+    "summary": {
+      "stage": "construct",
+      "saved": 40,
+      "newly_processed": 40,
+      "statuses": {
+        "rejected": 24,
+        "ok": 16
+      },
+      "target_records": 40,
+      "correct": 2,
+      "accepted": 0,
+      "validation_limit": null,
+      "complete_without_errors": true
+    },
+    "model_ready_to_last_commit_seconds": 227.71223258972168,
+    "manifest_to_last_commit_seconds": 264.9749915599823,
+    "sum_sample_seconds": 227.527
+  },
+  "semantic_differences": [],
+  "warm_speedup": 3.1649607975639884
+}

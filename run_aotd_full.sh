@@ -16,6 +16,7 @@ while (($#)); do
             echo 'AOTD_SAVE_STEPS defaults to 100; keep the last two complete resumable training checkpoints.'
             echo 'Default: independently train Instruct and AoTD from Base for one full epoch, then evaluate author/base/instruct/aotd on the complete NExT-QA split.'
             echo 'Four GPUs, ZeRO-2, BF16, microbatch 1, accumulation 12, effective batch 48. No smoke step/sample limits.'
+            echo 'Construction: AOTD_CONSTRUCTION_WORKERS=4 independent single-device teacher stacks; set 1 for legacy serial placement.'
             echo 'Training: four work GPUs + four keep-alive GPUs. Evaluation: one work GPU + seven keep-alive GPUs.'
             echo '--check: validate inputs only; do not launch GPU workloads.'
             echo '--eval-only: full author and base evaluation, without training.'
@@ -32,6 +33,7 @@ done
 source "$ROOT/runtime_env.sh"
 case "$(findmnt -T "$ROOT" -n -o FSTYPE)" in overlay|tmpfs|ramfs|'') echo 'ERROR: persistent mounted storage required'; exit 2;; esac
 [[ -x "$ROOT/env/bin/python" ]] || { echo "Offline environment missing: run $ROOT/setup_offline.sh"; exit 2; }
+export AOTD_CONSTRUCTION_WORKERS=${AOTD_CONSTRUCTION_WORKERS:-4}
 export AOTD_FULL_MODE="$MODE"
 export AOTD_EVAL_SPLIT=${AOTD_EVAL_SPLIT:-val}
 [[ "$AOTD_EVAL_SPLIT" == val || "$AOTD_EVAL_SPLIT" == test ]] || exit 2

@@ -1,5 +1,7 @@
 """Offline Agent -> correct traces -> Llama transfer -> quality filter, with resume."""
 import argparse
+import multiprocessing
+from multiprocessing.connection import wait
 from collections import Counter
 import fcntl
 import hashlib
@@ -232,6 +234,114 @@ class TextBackend:
         return dict(filter_response=result, accepted=result.strip(' .\n\t').casefold() == 'true')
 
 
+def process_row(backend, row, trace_dir, timeout):
+    sid = row["sample_id"]
+    item = {key:value for key,value in row.items() if key not in {'status','error','traceback','seconds'}}
+    before = time.monotonic()
+    trace = trace_dir/(hashlib.sha256(sid.encode()).hexdigest()+'.txt')
+    failure = None
+    try:
+        item.update(backend(row, trace, timeout), status='ok')
+    except (ValueError, SyntaxError, TypeError, AttributeError, KeyError, IndexError, TimeoutError) as error:
+        failure = error
+        # Invalid generated programs/rationales are rejected data, not
+        # a reason to abort a whole source. Infrastructure/model failures
+        # remain errors and stop the stage for investigation.
+        item.update(status='rejected',error=f'{type(error).__name__}: {error}',traceback=traceback.format_exc())
+        if isinstance(error,GeneratedProgramError):
+            item.update(code=getattr(error,'program_code',''),rejection_kind='generated_program')
+    except Exception as error:
+        failure = error
+        item.update(status='error', error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())
+    if failure is not None:
+        # Preserve the exact generated program and partial observations
+        # for tool/model failures as well as invalid Python programs.
+        if getattr(failure, 'program_code', None):
+            item['code'] = failure.program_code
+        if trace.is_file():
+            item['execution_trace'] = trace.read_text()
+    item['seconds'] = round(time.monotonic()-before, 3)
+    return item
+
+
+def construction_worker(connection, gpu, output):
+    # Spawn, never fork CUDA; each process owns its models, globals and SIGALRM.
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    try:
+        backend = ConstructionBackend(output)
+        connection.send(('ready', None))
+        while True:
+            request = connection.recv()
+            if request is None:
+                return
+            row, trace_dir, timeout = request
+            connection.send(('result', process_row(backend, row, Path(trace_dir), timeout)))
+    except BaseException:
+        connection.send(('fatal', traceback.format_exc()))
+    finally:
+        connection.close()
+
+
+def parallel_results(rows, output, trace_dir, timeout, gpus):
+    """Bounded one-in-flight request per GPU; the parent alone commits results."""
+    rows = iter(rows)
+    first = next(rows, None)
+    if first is None:
+        return
+    import itertools
+    rows = itertools.chain([first], rows)
+    context = multiprocessing.get_context('spawn')
+    workers = {}
+    try:
+        for index, gpu in enumerate(gpus):
+            parent, child = context.Pipe()
+            process = context.Process(target=construction_worker,
+                                      args=(child, gpu, str(output/'workers'/str(index))))
+            process.start(); child.close()
+            workers[parent] = [process, time.monotonic(), 'loading']
+        exhausted = False
+        while workers:
+            for connection in wait(list(workers), timeout=1):
+                process, _, state = workers[connection]
+                try:
+                    kind, payload = connection.recv()
+                except EOFError:
+                    raise RuntimeError(f'Construction worker exited unexpectedly: {process.pid}')
+                if kind == 'fatal':
+                    raise RuntimeError(f'Construction worker failed: {payload}')
+                if kind == 'result':
+                    yield payload
+                    if payload['status'] == 'error':
+                        return
+                elif kind != 'ready':
+                    raise RuntimeError(f'Invalid worker response: {kind}')
+                row = None if exhausted else next(rows, None)
+                if row is None:
+                    exhausted = True
+                    connection.send(None)
+                    process.join(20)
+                    if process.is_alive():
+                        raise RuntimeError('Worker failed to exit')
+                    connection.close(); del workers[connection]
+                else:
+                    connection.send((row, str(trace_dir), timeout))
+                    workers[connection][1:] = [time.monotonic(), row['sample_id']]
+            for process, since, state in workers.values():
+                if not process.is_alive():
+                    raise RuntimeError(f'Construction worker died: {process.pid}, {state}')
+                if time.monotonic()-since > timeout+600:
+                    raise TimeoutError(f'Construction worker stalled: {process.pid}, {state}')
+    finally:
+        for connection, (process, _, _) in workers.items():
+            if process.is_alive(): process.terminate()
+        for connection, (process, _, _) in workers.items():
+            process.join(10)
+            if process.is_alive(): process.kill(); process.join(10)
+            connection.close()
+
+
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument('--stage', required=True, choices=['check', 'construct', 'transfer', 'filter', 'export'])
@@ -332,48 +442,42 @@ def run_stage(args):
     if progress_interval<=0:raise ValueError('AOTD_PROGRESS_INTERVAL_SECONDS must be positive')
     statuses = Counter(x['status'] for x in done.values())
     with ProgressReporter(args.stage,target,progress_interval,statuses,len(done)) as progress, journal.open('a') as stream:
-        for row in rows:
-            if args.stage != 'construct' and (row.get('status') != 'ok' or not row.get('correct')): continue
-            total += 1
-            if args.limit is not None and total > args.limit: break
-            sid = row['sample_id']
-            if not should_process(done.get(sid),args.retry_errors):continue
-            progress.update(processed=total-1,current=sid)
-            if backend is None:
-                backend = ConstructionBackend(args.output_dir) if args.stage == 'construct' else TextBackend(args.stage)
-            item = {key:value for key,value in row.items() if key not in {'status','error','traceback','seconds'}}
-            before = time.monotonic()
-            trace = trace_dir/(hashlib.sha256(sid.encode()).hexdigest()+'.txt')
-            failure = None
-            try:
-                item.update(backend(row, trace, args.timeout), status='ok')
-            except (ValueError, SyntaxError, TypeError, AttributeError, KeyError, IndexError, TimeoutError) as error:
-                failure = error
-                # Invalid generated programs/rationales are rejected data, not
-                # a reason to abort a whole source. Infrastructure/model failures
-                # remain errors and stop the stage for investigation.
-                item.update(status='rejected',error=f'{type(error).__name__}: {error}',traceback=traceback.format_exc())
-                if isinstance(error,GeneratedProgramError):
-                    item.update(code=getattr(error,'program_code',''),rejection_kind='generated_program')
-            except Exception as error:
-                failure = error
-                item.update(status='error', error=f'{type(error).__name__}: {error}', traceback=traceback.format_exc())
-            if failure is not None:
-                # Preserve the exact generated program and partial observations
-                # for tool/model failures as well as invalid Python programs.
-                if getattr(failure, 'program_code', None):
-                    item['code'] = failure.program_code
-                if trace.is_file():
-                    item['execution_trace'] = trace.read_text()
-            item['seconds'] = round(time.monotonic()-before, 3)
-            append_record(stream, item)
-            if sid in done: statuses[done[sid]['status']] -= 1
-            done[sid] = {key:item.get(key) for key in ['sample_id','status','correct','accepted']}
-            statuses[item['status']] += 1
-            new += 1
-            progress.update(processed=total,new=new,saved=len(done),ok=statuses['ok'],
-                            rejected=statuses['rejected'],errors=statuses['error'],current=sid)
-            if item['status']=='error':break
+        def pending():
+            nonlocal total
+            for row in rows:
+                if args.stage != 'construct' and (row.get('status') != 'ok' or not row.get('correct')): continue
+                total += 1
+                if args.limit is not None and total > args.limit: break
+                if should_process(done.get(row['sample_id']), args.retry_errors): yield row
+
+        def serial_results():
+            nonlocal backend
+            for row in pending():
+                progress.update(current=row['sample_id'])
+                if backend is None:
+                    backend = ConstructionBackend(args.output_dir) if args.stage == 'construct' else TextBackend(args.stage)
+                yield process_row(backend, row, trace_dir, args.timeout)
+
+        count = int(os.environ.get('AOTD_CONSTRUCTION_WORKERS', '1')) if args.stage == 'construct' else 1
+        gpus = os.environ.get('CUDA_VISIBLE_DEVICES', '0,1,2,3').split(',')
+        if count < 1 or count > len(gpus) or len(set(gpus)) != len(gpus):
+            raise ValueError('Invalid construction worker count / GPU selection')
+        initial_saved = sum(not should_process(value,args.retry_errors) for value in done.values())
+        results = parallel_results(pending(), args.output_dir, trace_dir, args.timeout, gpus[:count]) if count > 1 else serial_results()
+        print(f'[construction scheduling] workers={count} resumed={initial_saved}', flush=True)
+        try:
+            for item in results:
+                sid = item['sample_id']
+                append_record(stream, item)
+                if sid in done: statuses[done[sid]['status']] -= 1
+                done[sid] = {key:item.get(key) for key in ['sample_id','status','correct','accepted']}
+                statuses[item['status']] += 1
+                new += 1
+                progress.update(processed=initial_saved+new,new=new,saved=len(done),ok=statuses['ok'],
+                                rejected=statuses['rejected'],errors=statuses['error'],current=sid)
+                if item['status']=='error':break
+        finally:
+            results.close()
     statuses = Counter(x['status'] for x in done.values())
     summary = dict(stage=args.stage, saved=len(done), newly_processed=new, statuses=dict(statuses),
                    target_records=target,
