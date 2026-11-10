@@ -1,0 +1,409 @@
+{
+  "completed_utc": "2026-11-10T15:20:21.192208+00:00",
+  "audit_utc": "2026-11-10T15:25:52.905687+00:00",
+  "status": "PASS",
+  "deployment": {
+    "revision": "65317ee4aba74f5ccf2360652b38c0a5aee43224",
+    "verified_files": 249,
+    "status": "PASS"
+  },
+  "protocol_sha256": "e60843887764b1a1249fc275645a237e107775e3eedc398205fc60c7434167b2",
+  "eval_csv_sha256": "43198bdef8436b8d64a9b75d846b0987c10cbf94ebf4be325c4a4e54634d66b8",
+  "evaluations": {
+    "author": {
+      "summary": {
+        "total": 4996,
+        "correct": 3878,
+        "accuracy": 0.7762209767814251,
+        "invalid": 0,
+        "invalid_rate": 0.0,
+        "C": {
+          "total": 2607,
+          "correct": 2019,
+          "accuracy": 0.7744533947065593
+        },
+        "T": {
+          "total": 1612,
+          "correct": 1194,
+          "accuracy": 0.7406947890818859
+        },
+        "D": {
+          "total": 777,
+          "correct": 665,
+          "accuracy": 0.8558558558558559
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 22.533924972172827,
+        "total_seconds": 3576.233084724052,
+        "peak_allocated_bytes": 17144621568,
+        "peak_reserved_bytes": 18312331264
+      },
+      "settings": {
+        "split": "val",
+        "dataset_size": 4996,
+        "limit": null,
+        "full_dataset": true,
+        "csv_sha256": "43198bdef8436b8d64a9b75d846b0987c10cbf94ebf4be325c4a4e54634d66b8",
+        "script_sha256": "17556df1afc8d36adb6c1d082156258334377ed7e8911db4820d7d639719969b",
+        "parsing": "strict_letter_v1",
+        "frames": 32,
+        "do_sample": false,
+        "max_new_tokens": 1024,
+        "attention": "sdpa",
+        "torch": "2.11.0a0+eb65b36914.nv26.02",
+        "cuda": "13.1",
+        "gpu_count": 1,
+        "progress_interval_seconds": 30.0,
+        "resumed_records": 0,
+        "resume_fingerprint_sha256": "4b07042988987ed035dcdc2e84b07e30edb766f0eff1ae19d8cfa531cc6f41f3"
+      },
+      "unique_records": 4996
+    },
+    "base": {
+      "summary": {
+        "total": 4996,
+        "correct": 3121,
+        "accuracy": 0.6246997598078463,
+        "invalid": 12,
+        "invalid_rate": 0.0024019215372297837,
+        "C": {
+          "total": 2607,
+          "correct": 1612,
+          "accuracy": 0.6183352512466437
+        },
+        "T": {
+          "total": 1612,
+          "correct": 937,
+          "accuracy": 0.5812655086848635
+        },
+        "D": {
+          "total": 777,
+          "correct": 572,
+          "accuracy": 0.7361647361647362
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 19.205127307912335,
+        "total_seconds": 3570.763813412981,
+        "peak_allocated_bytes": 17144621568,
+        "peak_reserved_bytes": 18312331264
+      },
+      "settings": {
+        "split": "val",
+        "dataset_size": 4996,
+        "limit": null,
+        "full_dataset": true,
+        "csv_sha256": "43198bdef8436b8d64a9b75d846b0987c10cbf94ebf4be325c4a4e54634d66b8",
+        "script_sha256": "17556df1afc8d36adb6c1d082156258334377ed7e8911db4820d7d639719969b",
+        "parsing": "strict_letter_v1",
+        "frames": 32,
+        "do_sample": false,
+        "max_new_tokens": 1024,
+        "attention": "sdpa",
+        "torch": "2.11.0a0+eb65b36914.nv26.02",
+        "cuda": "13.1",
+        "gpu_count": 1,
+        "progress_interval_seconds": 30.0,
+        "resumed_records": 0,
+        "resume_fingerprint_sha256": "d95dcedcc096896cc8328e8bac3321cf800ec699bbba404c0dd92c82d45bcf1c"
+      },
+      "unique_records": 4996
+    },
+    "instruct": {
+      "summary": {
+        "total": 4996,
+        "correct": 3527,
+        "accuracy": 0.705964771817454,
+        "invalid": 0,
+        "invalid_rate": 0.0,
+        "C": {
+          "total": 2607,
+          "correct": 1856,
+          "accuracy": 0.7119294207901803
+        },
+        "T": {
+          "total": 1612,
+          "correct": 1072,
+          "accuracy": 0.6650124069478908
+        },
+        "D": {
+          "total": 777,
+          "correct": 599,
+          "accuracy": 0.7709137709137709
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 21.957783127902076,
+        "total_seconds": 3570.5033417919185,
+        "peak_allocated_bytes": 17144621568,
+        "peak_reserved_bytes": 18312331264
+      },
+      "settings": {
+        "split": "val",
+        "dataset_size": 4996,
+        "limit": null,
+        "full_dataset": true,
+        "csv_sha256": "43198bdef8436b8d64a9b75d846b0987c10cbf94ebf4be325c4a4e54634d66b8",
+        "script_sha256": "17556df1afc8d36adb6c1d082156258334377ed7e8911db4820d7d639719969b",
+        "parsing": "strict_letter_v1",
+        "frames": 32,
+        "do_sample": false,
+        "max_new_tokens": 1024,
+        "attention": "sdpa",
+        "torch": "2.11.0a0+eb65b36914.nv26.02",
+        "cuda": "13.1",
+        "gpu_count": 1,
+        "progress_interval_seconds": 30.0,
+        "resumed_records": 0,
+        "resume_fingerprint_sha256": "1893b3a50ce39ce0660b4c517f4c87c8438a79f9657ff731d3778f3bddb34a95"
+      },
+      "unique_records": 4996
+    },
+    "aotd": {
+      "summary": {
+        "total": 4996,
+        "correct": 3529,
+        "accuracy": 0.7063650920736589,
+        "invalid": 0,
+        "invalid_rate": 0.0,
+        "C": {
+          "total": 2607,
+          "correct": 1868,
+          "accuracy": 0.7165324127349444
+        },
+        "T": {
+          "total": 1612,
+          "correct": 1056,
+          "accuracy": 0.6550868486352357
+        },
+        "D": {
+          "total": 777,
+          "correct": 605,
+          "accuracy": 0.7786357786357786
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 22.07480483595282,
+        "total_seconds": 3570.7056839149445,
+        "peak_allocated_bytes": 17144621568,
+        "peak_reserved_bytes": 18312331264
+      },
+      "settings": {
+        "split": "val",
+        "dataset_size": 4996,
+        "limit": null,
+        "full_dataset": true,
+        "csv_sha256": "43198bdef8436b8d64a9b75d846b0987c10cbf94ebf4be325c4a4e54634d66b8",
+        "script_sha256": "17556df1afc8d36adb6c1d082156258334377ed7e8911db4820d7d639719969b",
+        "parsing": "strict_letter_v1",
+        "frames": 32,
+        "do_sample": false,
+        "max_new_tokens": 1024,
+        "attention": "sdpa",
+        "torch": "2.11.0a0+eb65b36914.nv26.02",
+        "cuda": "13.1",
+        "gpu_count": 1,
+        "progress_interval_seconds": 30.0,
+        "resumed_records": 0,
+        "resume_fingerprint_sha256": "fe7269b394bb768018b354c8bf34f2f9415cb3a79af757f89a88b1574f0554b9"
+      },
+      "unique_records": 4996
+    }
+  },
+  "training": {
+    "instruct": {
+      "global_step": 2785,
+      "target_steps": 2785,
+      "final_checkpoint": "checkpoint-2785",
+      "export_file_sizes_verified": true,
+      "configuration": {
+        "world_size": 4,
+        "microbatch": 1,
+        "accumulation": 12,
+        "max_steps": -1,
+        "epochs": 1,
+        "seed": 42,
+        "optimizer": "adamw_torch",
+        "learning_rate": 4e-05,
+        "warmup_ratio": 0.03,
+        "scheduler": "cosine",
+        "attention": "sdpa",
+        "deepspeed_sha256": "0653989952b279637f9b6e5607661dee1213b613f2d2cfb6d858ae7b156ab7a3",
+        "loss_normalization": "trainer_per_microbatch_mean",
+        "bf16": true
+      },
+      "padding": {
+        "method": "repeat first rows of seeded shuffled training view; source files unchanged",
+        "original_records": 133654,
+        "padding_records": 26,
+        "padded_records": 133680,
+        "effective_batch_size": 48,
+        "selected_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "selected_ids_sha256": "3304f7b4a2c235c43682279099b57a9d35554db46ef39795a2ecec3e4ffbed04"
+      },
+      "metrics": {
+        "epoch": 1.0,
+        "total_flos": 2.603836909248368e+19,
+        "train_loss": 0.09406130981616528,
+        "train_runtime": 30276.4322,
+        "train_samples_per_second": 4.415,
+        "train_steps_per_second": 0.092
+      }
+    },
+    "aotd": {
+      "global_step": 2877,
+      "target_steps": 2877,
+      "final_checkpoint": "checkpoint-2877",
+      "export_file_sizes_verified": true,
+      "configuration": {
+        "world_size": 4,
+        "microbatch": 1,
+        "accumulation": 12,
+        "max_steps": -1,
+        "epochs": 1,
+        "seed": 42,
+        "optimizer": "adamw_torch",
+        "learning_rate": 4e-05,
+        "warmup_ratio": 0.03,
+        "scheduler": "cosine",
+        "attention": "sdpa",
+        "deepspeed_sha256": "0653989952b279637f9b6e5607661dee1213b613f2d2cfb6d858ae7b156ab7a3",
+        "loss_normalization": "trainer_per_microbatch_mean",
+        "bf16": true
+      },
+      "padding": {
+        "method": "repeat first rows of seeded shuffled training view; source files unchanged",
+        "original_records": 138053,
+        "padding_records": 43,
+        "padded_records": 138096,
+        "effective_batch_size": 48,
+        "selected_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42
+        ],
+        "selected_ids_sha256": "d82894214aaac334c6579a6dae0d4f60ce70b77b9f663741efca8821ef05997d"
+      },
+      "metrics": {
+        "epoch": 1.0,
+        "total_flos": 2.692610744065091e+19,
+        "train_loss": 0.092704933220867,
+        "train_runtime": 31532.238,
+        "train_samples_per_second": 4.38,
+        "train_steps_per_second": 0.091
+      }
+    }
+  },
+  "artifact_sha256": {
+    "author_val_full.json": "7cd1cf6604349e4335549938f2dcd372ac02246ce4f6d8904a250f263bfdb0d2",
+    "base_val_full.json": "68d71bd060aa03938da7030347ee94d4274681470dddee304c8c48ce035a3e39",
+    "instruct_val_full.json": "7f92c4db2814507452e533ee69640df715e754a91124e65de4f76761bd745bc5",
+    "aotd_val_full.json": "3669decd82a84f4cd5c52490f898dbe1a2e4528cd74a23969399b6ed5a85537e",
+    "instruct_s42/training_complete.json": "9273f79fe134e97136d743926c62bd9027db66caa7cfe2843056f8ecb76f9750",
+    "instruct_s42/train_results.json": "4e42426e1594f45ce0b3be94be3f82a4f09f238ea2ededfa583927ef1df202c7",
+    "aotd_s42/training_complete.json": "3354cb07c74a3ad48d8d46e7fa551afd541ee2c8ce7c667c93b39c004c22762a",
+    "aotd_s42/train_results.json": "da4b3cdc7ce3b385d7c3ab6010e3d3c2872eb5421f32b4ad7564d5cfb1500fa6"
+  },
+  "paired_aotd_vs_instruct": {
+    "aotd_only_correct": 134,
+    "instruct_only_correct": 132
+  },
+  "data": {
+    "qa_counts": {
+      "NExT-QA": 34132,
+      "STAR": 45731,
+      "AGQA": 25000,
+      "CLEVRER": 21000,
+      "EgoQA": 7791
+    },
+    "cot_counts": {
+      "NExT-QA": 2205,
+      "STAR": 1814,
+      "AGQA": 380
+    },
+    "excluded_sources": [
+      "ANetQA"
+    ],
+    "qa_records": 133654,
+    "aotd_records": 138053,
+    "eval_questions": 4996,
+    "eval_videos": 570,
+    "errors": []
+  },
+  "checks": [
+    "complete run and PASS summary",
+    "unique full question coverage on all four models",
+    "recomputed correctness, invalid and category counts",
+    "identical evaluation IDs, labels and media hashes",
+    "final training step and export file sizes",
+    "final committed checkpoint marker exists"
+  ]
+}
