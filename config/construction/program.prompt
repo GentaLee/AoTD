@@ -1,200 +1,35 @@
-def Count(clip, obj):
-    """Return the maximum number of detected instances of obj in a video frame.
-    Use this function for counting questions. obj is an object class, e.g. "child".
-    """
+Write a short executable Python function using the following existing video tools.
+The video_clip argument supplies the actual video at runtime. Never ask for more context or a video upload.
 
-def Query_Objs(clip, query):
-    """
-    Query the objects that appear in video clip and match the query descriptions.
-    Parameters
-    -------
-    clip:
-        a list of video frames.
-    query:
-        Description of the target object.
-    Returns
-    -------
-    a short textual description of the objects that match the query. This is not a list of detection boxes; do not use len() to count objects.
-    Examples
-    -------
-    #return white_objs
-    def execute_command(video_clip):
-        white_objs = Query_Objs(video_clip, "white object")
-        return white_objs
-    """
+API signatures and actual return types:
+Video_query(clip, question, possible_answers=None) -> str: asks the video expert a specific question.
+Query_Actions(clip, obj=None) -> str: a textual action description, NOT a list. obj must be an object name.
+Query_Objs(clip, obj) -> str: a textual object description, NOT a list or boxes.
+Video_summary(clip, query=None) -> str: detailed visible evidence relevant to query, including objects, actions and observed order.
+Filter_frames_with_act(clip, action) -> VideoClip: localizes an event; .start/.end are absolute frame indices.
+Filter_frames_with_obj(clip, obj) -> VideoClip: object frames, or original clip if nothing detected.
+Find(clip, obj) -> VideoClip: object crops, or original clip if nothing detected.
+Count(clip, obj) -> int: maximum simultaneous object count, not number of events.
+exist(clip, obj) -> bool: object presence, not touching, event order or duration.
+trim(clip, start=None, end=None) -> VideoClip: a strictly nonempty interval of absolute frame indices.
+select_answer(query, info, possible_answers) -> str: reasons from a dictionary of observations to select a choice; with None, returns a short open answer.
 
-def Query_Actions(clip, obj=None):
-    """
-    Find the actions happened in the video clip, if obj is not None, query the actions related to it.
-    Parameters
-    -------
-    clip:
-        a list of the video frames.
-    obj:
-        object class which is used to query the actions related to it.
-    Returns
-    -------
-    a list of actions classes happened in the video clip.
-    Examples
-    -------
-    #return actions
-    def execute_command(video_clip, query, possible_answers):
-        actions = Query_Actions(video_clip)
-        return actions
-    """
+A VideoClip cannot be indexed, iterated, counted with len(), or used as evidence via a truth test.
+Query_Actions and Query_Objs return TEXT. Do not iterate or index their strings as if they were action/object lists. Pass the whole observation to select_answer.
+Do not hardcode an answer or infer it from the question alone. Collect video observations first.
+Use no imports, nested definitions, lambdas or while loops. Use simple straight-line calls and dictionaries. Do not call .sort(), .intersection(), next(), reversed() or unlisted tools.
+For complex questions, ask focused Video_query questions about each relevant event, then reason with select_answer. Do not substitute object presence for touching or event order.
 
-def Filter_frames_with_act(clip, action):
-    """
-    filter a new video clip containing the time period in which the target action occurred
-    Parameters
-    -------
-    clip:
-        a list of video frames.
-    action:
-        the target action which is used to filter frames.
-    Returns
-    -------
-    a new video clip ontaining the time period in which the target action occurred.
-    Examples
-    -------
-    #return jump_clip
-    def execute_command(video_clip, query, possible_answers):
-        jump_clip = Filter_frames_with_act(video_clip, "person is jumping")
-        return jump_clip
-    """
+Always collect a question-conditioned Video_summary first so the execution trace records actual visual evidence, not just a one-word answer. Add focused Video_query or localization calls when needed. Pass all relevant observations to select_answer. Never replace the requested relation with a different relation.
 
-def Filter_frames_with_obj(clip, obj):
-    """
-    filter a new video clip that the target object occured.
-    Parameters
-    -------
-    clip:
-        a list of video frames.
-    obj:
-        class or description about the target object.
-    Returns
-    -------
-    a new video clip that the target object occured in it.
-    Examples
-    -------
-    #return shoe_clip
-    def execute_command(video_clip, query, possible_answers):
-        shoe_clip = Filter_frames_with_obj(video_clip, "shoe")
-        return shoe_clip
-    """
+Example interface usage (not a labeled training example):
+def execute_command(video_clip, query, possible_answers):
+    evidence = Video_summary(video_clip, query)
+    detail = Video_query(video_clip, query)
+    answer = select_answer(query, {"visible evidence": evidence, "focused observation": detail}, possible_answers)
+    return answer
 
-def trim(clip, start=None, end=None):
-    """
-    Returns a new video clip containing a trimmed version of the original video at the [start, end] clip.
-    Parameters
-    ----------
-    clip:
-        a list of video frames.
-    start : Union[int, None]
-        An int describing the starting frame in this video clip with respect to the original video.
-    end : Union[int, None]
-        An int describing the ending frame in this video clip with respect to the original video.
-
-    Returns
-    -------
-    a new video clip with start and end.
-    """
-def Find(clip, obj):
-    """
-    find all bounding boxes around a certain object in the video clip,
-    and collates them into a collection of frames.
-    Parameters
-    ----------
-    clip:
-        a list of video frames.
-    obj:
-        the object to look for.
-    Returns
-    -------
-    a new video clip composed of crops of the object.
-    Examples
-    --------
-    # Return the shoe_clip
-    def execute_command(video_clip, query, possible_answers):
-        shoe_clip = Find(video_clip, "shoe")
-        return shoe_clip
-    """
-
-def select_answer(query, info, possible_answers):
-    """
-    Uses a language model to choose the option that best answers the question given the input information.
-    Parameters
-    ----------
-    query:
-        the input question.
-    info:
-        Any useful information to answer the question.
-    possible_answers:
-        a list of possible answers to the question.
-    Returns
-    -------
-    one answer chosen from the possible answers.
-    Examples
-    --------
-    # Return the answer
-    def execute_command(video_clip, query, possible_answers):
-        clip_summary = Video_summary(video_clip)
-        info = {
-            "summary of the target video": clip_summary
-        }
-        answer = select_answer(query, info, possible_answers)
-        return answer
-    """
-def exist(clip, query):
-    """
-    judge whether a object exists in the video.
-    Parameters
-    ----------
-    clip:
-        a list of video frames.
-    query:
-        query to the object class.
-    Returns
-    -------
-    Return True if the object specified by query is found in the video, and False otherwise.
-    Examples
-    --------
-    # Return the flag
-    def execute_command(video_clip, query, possible_answers):
-        flag = exist(video_clip, "shoe")
-        return flag
-    """
-def Video_summary(clip, query):
-    """
-    give a brief summary of the video clip related to the query.
-    Parameters
-    ----------
-    clip:
-        a list of video frames.
-    query:
-        a question about the video.
-    Returns
-    -------
-    return a brief summary of the video clip.
-    Examples
-    --------
-    # Return the clip_summary
-    def execute_command(video_clip, query, possible_answers):
-        clip_summary = Video_summary(video_clip, query)
-        return clip_summary
-    """
-The function signature must be exactly def execute_command(video_clip, query, possible_answers):.
-For open-ended questions possible_answers is None; return a short text answer.
-Write a function using Python and the functions (above) that could be executed to provide an answer to the query.
-
-Consider the following guidelines:
-- Use base Python (comparison, sorting) for basic logical operations, start/end, math, etc.
-- Objects with mutiple names like "phone/camera", "cup/glass/bottle" with slash, input them as a whole object name!!
-- Just use the class and function appear above except for some base python operations.
-- Only answer with a function starting def execute_command, don't answer any extra words and symbols before and after the function!!!!
-- No text that is not related to function can appear!!
-- the answer only begins with "def execute_command" and ends with "return answer"!!!!!!
-- Do not use extra unnecessary indentation!!
-
+Use observations relevant to the actual query, not the example events. When possible_answers is None, return a short word/phrase of the requested type: yes/no, before/after, object, or action. Never return a clip, container or one character extracted from text.
+Return only the executable function, no prose or markdown. The function signature is supplied; complete its indented body and return answer.
 Query: INSERT_QUERY_HERE
-possible answers: INSERT_POSSIBLE_ANSWERS_HERE
+possible_answers: INSERT_POSSIBLE_ANSWERS_HERE

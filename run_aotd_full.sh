@@ -68,6 +68,11 @@ if [[ "$MODE" == all && "$CHECK" == 0 && ( ! -f "$TRAIN_DATA/instruct.yaml" || !
     QA_SOURCE=${AOTD_QA_SOURCE:-$ROOT/data/five_source_sources/qa_normalized.jsonl}
     COT_SOURCE=${AOTD_COT_SOURCE:-$ROOT/data/five_source_sources/cot_filtered.jsonl}
 fi
+if [[ "$MODE" == all && "$CHECK" == 0 && ${AOTD_REQUIRE_CONSTRUCTION_QUALITY_GATE:-0} == 1 ]]; then
+    "$ROOT/env/bin/python" -B "$ROOT/tools/construction_quality_gate.py" \
+        --construction-dir "${AOTD_CONSTRUCTION_DIR:-$ROOT/data/construction}" \
+        --output "$AOTD_RUN_DIR/construction_quality_gate.json"
+fi
 if [[ "$MODE" == all && "$CHECK" == 0 && -f "$QA_SOURCE" && -f "$COT_SOURCE" ]]; then
     "$ROOT/env/bin/python" -B "$ROOT/tools/prepare_full_train.py" --qa "$QA_SOURCE" --cot "$COT_SOURCE" --output-dir "$TRAIN_DATA" --full-pool
 fi

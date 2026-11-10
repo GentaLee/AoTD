@@ -131,6 +131,7 @@ class ConstructionBackend:
         for key in ['deepseek', 'llava', 'owlv2', 'llama']:
             config[key].model_path = str(paths[key])
         config.deepseek.prompt_path = str(ROOT/'config/construction/program.prompt')
+        config.deepseek.program_prefix = 'def execute_command(video_clip, query, possible_answers):\n'
         config.llava.action_prompt_path = str(AGENT/'prompts/action_single.prompt')
         config.select_answer_prompt_dir = str(AGENT/'prompts/select_answer.prompt')
         config.univtg.resume = str(paths['univtg'])
@@ -216,12 +217,15 @@ class TextBackend:
                        else AGENT/'prompts/cot_filter.prompt').read_text()
 
     def __call__(self, row, _trace_path, _timeout):
-        prompt = self.prompt.replace('INSERT_QUESTION_HERE', row['question'])
+        from construction_io import trace_question_context
+        prompt = self.prompt.replace('INSERT_QUESTION_HERE', trace_question_context(row))
         if self.stage == 'transfer':
             prompt = prompt.replace('INSERT_PROGRAM_HERE', row['code']).replace(
                 'INSERT_EXECUTION_TRACE_HERE', row['execution_trace']+'\nprogram output: '+row['program_output'])
         else:
-            prompt = prompt.replace('INSERT_RATIONALE_HERE', row['rationale'])
+            prompt = prompt.replace('INSERT_RATIONALE_HERE', row['rationale']).replace(
+                'INSERT_EXECUTION_TRACE_HERE', row['execution_trace']).replace(
+                'INSERT_PROGRAM_OUTPUT_HERE', str(row['program_output']))
         text = self.tokenizer.apply_chat_template([
             {'role':'system','content':'You are a helpful assistant.'},
             {'role':'user','content':prompt}], tokenize=False, add_generation_prompt=True)

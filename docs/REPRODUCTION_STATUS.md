@@ -1,10 +1,18 @@
+# 第二轮状态 / Second experiment status
+
+2026-11-11：正在完成修复后的全链路验证并准备新一轮全量；详见 [第二轮开发说明](CONSTRUCTION_V2.md)。三源 CoT 将重新构建，原 QA 和第一轮结果保留。四路并行、独立借卡保活、断点续接保持启用。下文所有 4,399 CoT、70.64% 等完整指标均是第一轮结果，不代表第二轮已完成。
+
+The repaired second experiment is completing validation before full startup. Its data and outputs are isolated from the first run. All complete metrics below belong to the first experiment, not the new run.
+
+---
+
 # 五源离线复现状态与运行说明
 
-状态日期：2026-11-10。最终完整运行已结束，结果以[结果报告](FULL_RUN_RESULTS_20261110.md)为准，开发汇总见[开发报告](FULL_RUN_DEVELOPMENT_20261110.md)。下方旧 smoke 与故障观察保留作历史证据。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
+第一轮状态日期：2026-11-10。第一轮完整运行已结束，结果以[结果报告](FULL_RUN_RESULTS_20261110.md)为准，开发汇总见[开发报告](FULL_RUN_DEVELOPMENT_20261110.md)。下方旧 smoke 与故障观察保留作历史证据。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
 
 **当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、两轮正式一轮训练和四组完整 val 评测均已完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
 
-**最终状态：** `complete` / exit 0 / `PASS`；133,654 条 QA、4,399 条 CoT，Instruct 2,785 步、AoTD 2,877 步；四组各完成 4,996 题。Base 62.47%、Instruct 70.60%、AoTD 70.64%、作者权重 77.62%。八卡保活已恢复。
+**第一轮最终状态：** `complete` / exit 0 / `PASS`；133,654 条 QA、4,399 条 CoT，Instruct 2,785 步、AoTD 2,877 步；四组各完成 4,996 题。Base 62.47%、Instruct 70.60%、AoTD 70.64%、作者权重 77.62%。八卡保活已恢复。
 
 ## 1. 协议与数据范围
 

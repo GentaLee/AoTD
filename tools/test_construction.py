@@ -180,6 +180,28 @@ class ConstructionTests(unittest.TestCase):
         for text in ['B','(B)','banana']:self.assertTrue(answer_matches(text,row))
         for text in ['A','Answer might be B or A','unparseable']:self.assertFalse(answer_matches(text,row))
 
+    def test_agqa_boolean_answers_are_normalized_only_for_binary_labels(self):
+        row = dict(dataset='AGQA', options=[], answer='yes')
+        for output in [True, 'True', 'true.', 'YES']:
+            self.assertTrue(answer_matches(output, row))
+        for output in [False, 'true or false', 'Yes, but no', 'untrue', 1]:
+            self.assertFalse(answer_matches(output, row))
+        self.assertTrue(answer_matches(False, dict(row, answer='no')))
+        self.assertFalse(answer_matches(True, dict(row, answer='no')))
+        self.assertFalse(answer_matches(True, dict(row, answer='before')))
+        self.assertFalse(answer_matches(True, dict(row, dataset='NExT-QA')))
+        self.assertFalse(answer_matches(True, dict(row, options=['No','Yes'], answer=1)))
+
+    def test_text_context_resolves_program_choice_without_ground_truth_leakage(self):
+        from construction_io import trace_question_context
+        row = dict(question='What happened?', options=['walked','sat'], program_output='B', answer=0)
+        text = trace_question_context(row)
+        self.assertIn('Recorded answer text: sat', text)
+        self.assertIn('(A) walked', text)
+        self.assertEqual(text, trace_question_context(dict(row, answer=1)))
+        self.assertIn('Recorded answer text: walked', trace_question_context(dict(row, program_output='walked')))
+        self.assertEqual(trace_question_context(dict(question='Open?', options=[], program_output='yes', answer='no')), 'Open?')
+
     def test_export_excludes_wrong_failed_and_rejected_records(self):
         qa=self.directory/'qa.jsonl';qa.write_text('')
         rows=[dict(sample_id=str(i),status=status,accepted=accepted,correct=correct,rationale='test fixture only')

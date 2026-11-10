@@ -1,15 +1,14 @@
-Given a video and a question , I wrote the function execute_command using Python, and the other functions above that could be executed to provide an answer to the query.
-As shown in the code, the code will print execution traces.
-I need you to rewrite the execution trace into a natural language rationale that leads to the answer.
+Rewrite the recorded video-tool execution into a step-by-step natural-language rationale answering the question.
+First identify the relevant visible observations, then explain how their relation or temporal order answers the question, and finally state the supported conclusion. Use 3-5 sentences when the trace supports them. Do not merely restate the answer or describe the Python function.
+Use ONLY observations present in the execution trace. The program text is a procedure, not evidence that an event occurred.
+Do not invent bounding boxes, frame numbers, objects, events or causal relations. Include coordinates only if explicitly recorded and relevant; do not add placeholder coordinates.
+Preserve temporal order and negation. State uncertainty or missing evidence honestly; do not fill gaps with a plausible story.
+The recorded program output is the proposed answer; do not change it to an imagined human answer. Explain how the actual observations support it. If observations do not support it, say so rather than fabricating support.
+For multiple-choice questions, interpret the recorded answer using the supplied choice text, never guess what a letter means. State that answer in words.
+Return only the rationale, without code or repeating the question.
 
-Consider the following guidelines:
-− Use all the bounding box information in the rationale, don't use words like "so on" to omit the bounding box, just write all of them into the rationale.
-− Use the bounding box information in the rationale.
-− Referencing the execution trace, write a reasoning chain that leads to the most common human answer. Notice that the output should be the same as the human answer, not necessarily the program output.
-
-Now, look the question, program and execution trace, please transfer these information to a rantionale.
-You don't need to repeat the questions and rationales above, just focus on the question below!!
 Question: INSERT_QUESTION_HERE
+Program:
 INSERT_PROGRAM_HERE
 Execution trace:
 INSERT_EXECUTION_TRACE_HERE

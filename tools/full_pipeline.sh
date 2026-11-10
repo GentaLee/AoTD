@@ -32,6 +32,10 @@ N=${#GPU_ARRAY[@]}
 ACC=$((48/N))
 if [[ "$STAGE" == --train-stage ]]; then
     for mode in instruct aotd; do
+        if [[ "$mode" == instruct && -n ${AOTD_REUSE_INSTRUCT_DIR:-} ]]; then
+            "$PY" -B "$ROOT/tools/reuse_instruct.py" --source "$AOTD_REUSE_INSTRUCT_DIR" --run "$RUN"
+            continue
+        fi
         echo "[full training] $mode: one epoch, GPUs=$GPUS microbatch=1 accumulation=$ACC effective_batch=48"
         CUDA_VISIBLE_DEVICES="$GPUS" "$PY" -u -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node="$N" \
             "$ROOT/distillation/train.py" \
