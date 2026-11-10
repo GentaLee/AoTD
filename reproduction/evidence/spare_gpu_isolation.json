@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "main_pid_preserved": true,
+  "main_gpu_processes_preserved": true,
+  "main_records_before": 22027,
+  "main_records_after": 22048,
+  "borrowed_failure_exit_code": 17,
+  "borrow_guard_sigkill_recovered": true,
+  "spare_workers_restored": 4,
+  "canonical_prefix_preserved": true
+}

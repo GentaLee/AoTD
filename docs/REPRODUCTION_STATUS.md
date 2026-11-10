@@ -1,10 +1,18 @@
+# 第二轮状态 / Second experiment status
+
+2026-11-11：修复后的全链路验证通过，第二轮全量已启动；详见 [第二轮开发说明](CONSTRUCTION_V2.md)。三源 CoT 正在重新构建，原 QA 和第一轮结果保留。已实际中断并恢复同一全量运行，65→225 条，恢复后连续观察 180 秒，无重复 ID、运行错误，旧 journal 前缀不变；空闲时原八卡保活恢复，续跑时后四卡保持独立。四路并行、独立借卡保活、断点续接保持启用。下文所有 4,399 CoT、70.64% 等完整指标均是第一轮结果，不代表第二轮已完成。
+
+The repaired second experiment passed end-to-end smoke validation and is now running the full pipeline. A controlled production interruption restored all eight original keepalive workers; the same run resumed from 65 to 225 records with an unchanged journal prefix, no duplicate IDs or operational errors, and 180 seconds of observed progress. The spare group remained independent. Its data and outputs are isolated from the first run. All complete metrics below belong to the first experiment, not the new run.
+
+---
+
 # 五源离线复现状态与运行说明
 
-状态日期：2026-11-07。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
+第一轮状态日期：2026-11-10。第一轮完整运行已结束，结果以[结果报告](FULL_RUN_RESULTS_20261110.md)为准，开发汇总见[开发报告](FULL_RUN_DEVELOPMENT_20261110.md)。下方旧 smoke 与故障观察保留作历史证据。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
 
-**当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、正式一轮训练和完整评测尚未完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
+**当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、两轮正式一轮训练和四组完整 val 评测均已完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
 
-**最新故障状态：** 已修复正式 full 在第 2,564 个样本遇到的 OWLv2 长文本越界。69 项 CPU 回归、精确失败查询的真实模型回放均通过；首段无损推进至 3,004 条、连续构建约 23 分钟，受控中断后原 8 个保活 worker 全部恢复。同一命令随后续接至 **3,075 条**，本轮共新增 **511 条**，新增运行级错误和已完成样本重复执行均为 0（截至 `2026-11-07T02:16:16Z`），任务继续运行。完整三源 CoT、学生训练和完整评测尚未完成。故障、旧进度保护和本轮验证状态见 [开发记录](DEVELOPMENT_LOG.md)。
+**第一轮最终状态：** `complete` / exit 0 / `PASS`；133,654 条 QA、4,399 条 CoT，Instruct 2,785 步、AoTD 2,877 步；四组各完成 4,996 题。Base 62.47%、Instruct 70.60%、AoTD 70.64%、作者权重 77.62%。八卡保活已恢复。
 
 ## 1. 协议与数据范围
 
@@ -17,7 +25,7 @@
 | AGQA train | 25,000 | 是 | 确定性重建抽样，5,538 视频，缺失 0 |
 | CLEVRER train | 21,000 | 否 | 原生逐候选二分类标签，8,877 视频，缺失 0 |
 | EgoQA train | 7,791 | 否 | 原始 7,813 条中显式排除 16 条媒体缺失、6 条解码失败，其余全部通过 32 帧解码 |
-| 五源合计 | **133,654** | 三源需 CoT | 完整训练仍需合格 CoT |
+| 五源合计 | **133,654** | 三源需 CoT | 完整训练已完成 |
 
 EgoQA 的媒体异常不是传输截断：原始归档大小与发布方 SHA256 一致，缺失 16 个精确路径；另外 6 个 MP4 各仅 262 字节，实际解码失败。已检查同源镜像及补充分片目录，未找到可验证的替代片段。采用[固定 22 条排除清单](../reproduction/metadata/egoqa_media_exclusions.json)，保留原生标注 SHA256、逐项原因与有效媒体名单哈希，并保存[完整解码审计](../reproduction/evidence/egoqa_media_decode_audit.json)。这是一项公开记录的数据协议变化，不是把缺失样本静默跳过，也没有使用其他片段代替。
 
@@ -45,7 +53,7 @@ NExT-QA 原标注存在同一个 `video_qid=3617262562_2` 对应不同问题的�
 
 来源 revision、文件大小及哈希记录在[验证快照](../reproduction/evidence/verified_status.json)和[Llama 发布方清单](../reproduction/metadata/llama_publisher_hashes.json)。不在 Git 中分发模型二进制。
 
-## 3. 当前实测与证据
+## 3. 历史 smoke 与修复证据（最终结果见独立报告）
 
 已验证的软件环境包括 PyTorch `2.11.0a0+eb65b36914.nv26.02`、CUDA `13.1`、Transformers `4.49.0`、DeepSpeed `0.15.4`、NumPy `1.26.4`，使用 BF16/SDPA。版本记录不意味着所有其他镜像组合都已验证。
 
@@ -89,7 +97,7 @@ bash run_aotd_full.sh
 
 ## 5. GPU 保活、进度与中断
 
-训练和程序构建默认使用 4 张工作卡，其余 4 张卡运行保活；单卡转换、筛选和评测时为 1 张工作卡加 7 张保活卡。保活只是运行保障，不能将四卡训练报告为八卡训练。
+训练使用 4 张工作卡；构建、转换和筛选默认四进程并行，四模型评测各占一张工作卡并行。其余 4 张卡为独立保活/借用组，详见 [借卡说明](SPARE_GPU_TASKS.md)。保活只是运行保障，不能将四卡训练报告为八卡训练。
 
 原保活进程树由 guard 暂停和恢复，独立 watchdog 处理父进程异常；正常退出、错误与可处理信号退出都应恢复原保活。进程被系统强制终止后的恢复依赖 watchdog 仍在运行，宿主机/容器整体退出不能由同容器脚本保证恢复。
 
@@ -133,10 +141,10 @@ export AOTD_PROGRESS_INTERVAL_SECONDS=30
 - [x] 第二次 full 故障定位到 OWLv2 超长文本输入；边界、来源迁移、训练池发布与首次 checkpoint 恢复的 69 项 CPU 回归通过，精确失败查询真实模型前向通过。
 - [x] 本轮精确失败查询真实模型前向、正式 full 2,564→3,004 的无损推进，以及受控中断后原 8 worker 恢复均通过。
 - [x] 本轮中断后同目录继续新增 71 条至 3,075；3,004 条完整终态前缀不变、重复执行 0，新增运行级错误 0。
-- [ ] 三个启用 CoT 的来源完成完整 Agent→转换→筛选，记录成功、拒绝、错误及合格数。
-- [ ] Instruct/AoTD 各训练完整 1 epoch，记录步数、loss、资源峰值和 checkpoint。
-- [ ] 作者/Base/Instruct/AoTD 同一完整划分评测，报告逐题及分组指标。
+- [x] 三个启用 CoT 的来源完成完整 Agent→转换→筛选，记录成功、拒绝、错误及合格数。
+- [x] Instruct/AoTD 各训练完整 1 epoch，记录步数、loss、时间和 checkpoint；未宣称拥有完整训练资源峰值统计。
+- [x] 作者/Base/Instruct/AoTD 同一完整划分评测，报告逐题及分组指标。
 
-完整耗时尚未实测，不将两步短训练或四题 Agent 的速度直接外推为全量承诺。应在长阶段运行后，依据实际工具调用次数、视频长度、合格 CoT 数和吞吐更新估计。
+最终实测两轮训练共 17.17 小时，四模型并行评测约 1 小时；不含此前下载、制数和调试。详见结果报告。
 
 本工程沿用 [AoTD](https://github.com/zhengrongz/AoTD)的研究任务；模型和数据分别遵循其发布方许可证，本仓库不重新分发这些大体积资源。

@@ -141,8 +141,9 @@ class DeepSeekModel(BaseModel):
     def forward_(self, extended_prompt, input_type="image"):
         messages = [{"role": "user", "content": extended_prompt}]
         inputs = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-        outputs = self.pipeline(inputs, return_full_text=False, do_sample=False)
-        response = outputs[0]['generated_text']
+        prefix = config.deepseek.get('program_prefix', '')
+        outputs = self.pipeline(inputs + prefix, return_full_text=False, do_sample=False)
+        response = prefix + outputs[0]['generated_text']
         response = response.replace(f"execute_command({input_type})", f"execute_command({input_type}, time_wait_between_lines, syntax)")
         return response
 
@@ -319,7 +320,7 @@ class LLaVAVideoModel(BaseModel):
             clip = video_clip
 
         if task == "summary":
-            response = self.summary(clip)
+            response = self.summary(clip, query)
         elif task == "qa":
             response = self.qa(clip, query, possible_answers)
         elif task == "ar":
@@ -386,8 +387,14 @@ class LLaVAVideoModel(BaseModel):
         
     
     @torch.no_grad()
-    def summary(self, video_clip):
+    def summary(self, video_clip, query=None):
         prompt = "Please provide a one sentence description of the video, focusing on the main subjects, their actions, the background scenes."
+        if query:
+            prompt = ("Describe the visible evidence relevant to this question in 3-5 sentences. "
+                      "Identify the relevant objects and actions and their observed temporal order. "
+                      "Describe what is actually visible, not assumptions or a bare answer. "
+                      "If an event or relationship cannot be observed, say that it is unclear. "
+                      f"Question: {query}")
 
         video_summary = self.inference(video_clip, prompt)
 

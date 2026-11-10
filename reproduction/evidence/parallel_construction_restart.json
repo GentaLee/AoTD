@@ -1,0 +1,28 @@
+{
+  "first_progress": {
+    "records": 21659,
+    "lines": 21659,
+    "bytes": 32323205,
+    "sha256": "29a02d38a02fb4e7abb86f9a26a6524b85e60609bf71a63ba0de240fec5c3281",
+    "errors": 0
+  },
+  "after_stop": {
+    "records": 21659,
+    "lines": 21659,
+    "bytes": 32323205,
+    "sha256": "29a02d38a02fb4e7abb86f9a26a6524b85e60609bf71a63ba0de240fec5c3281",
+    "errors": 0
+  },
+  "old_prefix_preserved": true,
+  "original_keepalive_restored": 8,
+  "guard_exit_code": 143,
+  "second_progress": {
+    "records": 21712,
+    "lines": 21712,
+    "bytes": 32450772,
+    "sha256": "02fe2daf403fb5b360231d271f36797b2c7d4c90faa1d832129d84da5b1d740f",
+    "errors": 0
+  },
+  "second_prefix_preserved": true,
+  "status": "PASS"
+}

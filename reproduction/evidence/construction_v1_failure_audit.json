@@ -1,0 +1,137 @@
+{
+  "scope": "Historical attempt counters, including any retries. Single-letter incorrect outputs in multiple-choice sources are not evidence of a formatting bug; that diagnostic applies only to open-ended AGQA.",
+  "sources": {
+    "AGQA": {
+      "unique_constructed": 25000,
+      "historical_attempt_counters": {
+        "single_letter_wrong": 446,
+        "whitelist": 2370,
+        "other": 1472,
+        "syntax": 4047,
+        "clip_type": 2784
+      },
+      "top_rejections": [
+        [
+          "SyntaxError: unterminated string literal (detected at line 1)",
+          2166
+        ],
+        [
+          "GeneratedProgramError: TypeError: 'VideoClip' object is not iterable",
+          1610
+        ],
+        [
+          "SyntaxError: invalid syntax",
+          1367
+        ],
+        [
+          "ValueError: Unsupported generated attribute: sort",
+          706
+        ],
+        [
+          "GeneratedProgramError: TypeError: 'VideoClip' object is not subscriptable",
+          665
+        ],
+        [
+          "ValueError: Program must return an answer, not a clip/container",
+          647
+        ],
+        [
+          "ValueError: Unsupported generated operation: Lambda",
+          378
+        ],
+        [
+          "ValueError: Unsupported generated attribute: intersection",
+          369
+        ]
+      ]
+    },
+    "NExT-QA": {
+      "unique_constructed": 34132,
+      "historical_attempt_counters": {
+        "syntax": 5416,
+        "single_letter_wrong": 7555,
+        "clip_type": 980,
+        "whitelist": 461,
+        "other": 644
+      },
+      "top_rejections": [
+        [
+          "SyntaxError: invalid syntax",
+          3172
+        ],
+        [
+          "SyntaxError: unterminated string literal (detected at line 1)",
+          1952
+        ],
+        [
+          "GeneratedProgramError: TypeError: 'VideoClip' object is not iterable",
+          550
+        ],
+        [
+          "AttributeError: 'str' object has no attribute 'video'",
+          222
+        ],
+        [
+          "GeneratedProgramError: TypeError: object of type 'VideoClip' has no len()",
+          211
+        ],
+        [
+          "ValueError: Unsupported generated attribute: intersection",
+          194
+        ],
+        [
+          "ValueError: Program did not record any visual tool observations",
+          191
+        ],
+        [
+          "SyntaxError: unterminated string literal (detected at line 3)",
+          174
+        ]
+      ]
+    },
+    "STAR": {
+      "unique_constructed": 45731,
+      "historical_attempt_counters": {
+        "syntax": 6578,
+        "other": 2498,
+        "single_letter_wrong": 14672,
+        "whitelist": 2194,
+        "clip_type": 1699
+      },
+      "top_rejections": [
+        [
+          "SyntaxError: unterminated string literal (detected at line 1)",
+          3084
+        ],
+        [
+          "SyntaxError: invalid syntax",
+          3000
+        ],
+        [
+          "ValueError: Program must return an answer, not a clip/container",
+          1373
+        ],
+        [
+          "GeneratedProgramError: TypeError: 'VideoClip' object is not iterable",
+          1275
+        ],
+        [
+          "ValueError: Unsupported generated attribute: sort",
+          369
+        ],
+        [
+          "GeneratedProgramError: UnboundLocalError: cannot access local variable 'start_frame' where it is not associated with a value",
+          356
+        ],
+        [
+          "ValueError: Unsupported generated attribute: object",
+          258
+        ],
+        [
+          "ValueError: Unsupported generated operation: Lambda",
+          246
+        ]
+      ]
+    }
+  }
+}

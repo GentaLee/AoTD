@@ -1,0 +1,69 @@
+{
+  "eval_wall_seconds": 50.051231384975836,
+  "models": {
+    "author": {
+      "summary": {
+        "total": 8,
+        "correct": 6,
+        "accuracy": 0.75,
+        "invalid": 0,
+        "invalid_rate": 0.0,
+        "C": {
+          "total": 6,
+          "correct": 4,
+          "accuracy": 0.6666666666666666
+        },
+        "T": {
+          "total": 2,
+          "correct": 2,
+          "accuracy": 1.0
+        },
+        "D": {
+          "total": 0,
+          "correct": 0,
+          "accuracy": null
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 19.798207504907623,
+        "total_seconds": 26.696855888934806,
+        "peak_allocated_bytes": 17133538816,
+        "peak_reserved_bytes": 18312331264
+      },
+      "inference_seconds": 6.864500542869791
+    },
+    "base": {
+      "summary": {
+        "total": 8,
+        "correct": 7,
+        "accuracy": 0.875,
+        "invalid": 0,
+        "invalid_rate": 0.0,
+        "C": {
+          "total": 6,
+          "correct": 5,
+          "accuracy": 0.8333333333333334
+        },
+        "T": {
+          "total": 2,
+          "correct": 2,
+          "accuracy": 1.0
+        },
+        "D": {
+          "total": 0,
+          "correct": 0,
+          "accuracy": null
+        }
+      },
+      "metrics": {
+        "model_load_seconds": 20.65473975101486,
+        "total_seconds": 27.673363795038313,
+        "peak_allocated_bytes": 17133538816,
+        "peak_reserved_bytes": 18312331264
+      },
+      "inference_seconds": 6.989506620913744
+    }
+  },
+  "completed_resume_wall_seconds": 21.171381217893213,
+  "status": "PASS"
+}

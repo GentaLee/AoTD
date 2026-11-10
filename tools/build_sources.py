@@ -100,8 +100,9 @@ def main():
             if a.retry_errors:command.append('--retry-errors')
             if stage!='export':
                 state=run/f'{name}_{stage}';state.mkdir(parents=True,exist_ok=True)
-                mode='all' if stage=='construct' else 'eval-only'
-                gpus=os.environ.get('AOTD_TRAIN_GPUS','0,1,2,3') if stage=='construct' else os.environ.get('AOTD_EVAL_GPU','0')
+                parallel = stage=='construct' or int(os.environ.get('AOTD_TEXT_WORKERS','1'))>1
+                mode='all' if parallel else 'eval-only'
+                gpus=os.environ.get('AOTD_TRAIN_GPUS','0,1,2,3') if parallel else os.environ.get('AOTD_EVAL_GPU','0')
                 command=[PY,'-B',str(ROOT/'tools/with_spare_keepalive.py'),'--mode',mode,
                          '--keepalive-script',keep,'--state-dir',str(state),'--',
                          'env',f'CUDA_VISIBLE_DEVICES={gpus}',*command]

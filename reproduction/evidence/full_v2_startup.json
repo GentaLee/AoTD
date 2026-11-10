@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "run_name": "full_20261110T162916_669013_f6a353c1",
+  "stage": "running",
+  "code_revision": "0c19992ede89eed9204f31cb3a82f2d8d05ce74b",
+  "workers": 4,
+  "text_workers": 4,
+  "work_devices": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "spare_devices": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "full_scope": {
+    "qa_records": 133654,
+    "construction_questions": 104863,
+    "anetqa_excluded": true
+  },
+  "observation_started_unix": 1794328262.2965868,
+  "before_interrupt": {
+    "records": 65,
+    "bytes": 150979,
+    "sha256": "55568bed31fe68324adf6bdb52d7ef9908cf19f3ed0a408cad9eab83a6382731",
+    "timestamp_unix": 1794328317.3088353
+  },
+  "interrupt_result": {
+    "full_status": "interrupted",
+    "exit_code": 143,
+    "all_eight_original_workers_restored": true,
+    "journal_prefix_preserved": true,
+    "records": 65,
+    "bytes": 150979,
+    "sha256": "55568bed31fe68324adf6bdb52d7ef9908cf19f3ed0a408cad9eab83a6382731",
+    "timestamp_unix": 1794328322.3118515
+  },
+  "resume_result": {
+    "same_run_directory": true,
+    "prefix_preserved": true,
+    "duplicate_ids": 0,
+    "operational_errors": 0,
+    "records": 225,
+    "new_records": 160,
+    "observed_after_first_new_record_seconds": 180.08,
+    "elapsed_since_restart_seconds": 265.11,
+    "spare_workers_unchanged_and_running": true,
+    "samples": [
+      {
+        "timestamp_unix": 1794328322.3164692,
+        "records": 65
+      },
+      {
+        "timestamp_unix": 1794328352.3245227,
+        "records": 65
+      },
+      {
+        "timestamp_unix": 1794328382.3330612,
+        "records": 65
+      },
+      {
+        "timestamp_unix": 1794328412.34128,
+        "records": 71
+      },
+      {
+        "timestamp_unix": 1794328442.35041,
+        "records": 92
+      },
+      {
+        "timestamp_unix": 1794328472.3637004,
+        "records": 118
+      },
+      {
+        "timestamp_unix": 1794328502.3772361,
+        "records": 145
+      },
+      {
+        "timestamp_unix": 1794328532.3917613,
+        "records": 172
+      },
+      {
+        "timestamp_unix": 1794328562.4080834,
+        "records": 199
+      }
+    ],
+    "timestamp_unix": 1794328587.423072
+  },
+  "full_completed": false
+}

@@ -203,7 +203,29 @@ def answer_matches(output, row):
             return True
         match = re.fullmatch(r'\(?([A-Z])\)?[.\s]*', text)
         return bool(match and ord(match[1]) - 65 == index)
-    return text.casefold().rstrip('.') == str(row['answer']).strip().casefold().rstrip('.')
+    normalized = text.casefold().rstrip('.')
+    expected = str(row['answer']).strip().casefold().rstrip('.')
+    # AGQA binary labels use yes/no while the visual API can return bool.
+    # Only normalize a complete boolean token; no substring/prose matching,
+    # no mapping for object/action answers or multiple-choice indices.
+    if row.get('dataset') == 'AGQA' and expected in {'yes', 'no'}:
+        normalized = {'true': 'yes', 'false': 'no'}.get(normalized, normalized)
+    return normalized == expected
+
+
+def trace_question_context(row):
+    """Expose choices and the program-selected text, never the ground-truth label."""
+    question = row['question']
+    options = row.get('options') or []
+    if not options:
+        return question
+    choices = '\n'.join(f'({chr(65+i)}) {option}' for i, option in enumerate(options))
+    output = str(row.get('program_output', '')).strip()
+    selected = output
+    match = re.fullmatch(r'\(?([A-Z])\)?[.\s]*', output)
+    if match and 0 <= ord(match[1])-65 < len(options):
+        selected = str(options[ord(match[1])-65])
+    return f'{question}\nAnswer choices:\n{choices}\nRecorded program answer: {output}\nRecorded answer text: {selected}'
 
 
 TOOLS = {'Count', 'Video_query', 'Query_Actions', 'Query_Objs', 'Filter_frames_with_act',

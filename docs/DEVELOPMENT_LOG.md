@@ -1,3 +1,47 @@
+# 2026-11-11：修复制数契约并启动第二轮全量 / Repair construction and start a second full run
+
+AGQA 低产量审计定位到工具返回类型描述、布尔答案匹配、程序生成格式和视觉摘要忽略问题等缺陷。新版本同时修复选择题转换缺少选项文本，以及筛选器缺少轨迹/程序答案的上下文。完整设计、迭代失败记录与边界见 [第二轮开发说明](CONSTRUCTION_V2.md)。第一轮产物全部保留。
+
+固定开发子集 384 条：正确程序答案从 36 增至 113，最终 CoT 从 13 增至 83（AGQA 3→35，NExT-QA 7→33，STAR 3→15）。该子集参与了提示词迭代，不是独立测试集；仍发现教师描述与语义筛选的残余误判，不把数量提升当作最终效果证明。
+
+保留四 worker 制数/转换/筛选、四 rank 训练、四模型并行评测、逐条 journal 和完整训练 checkpoint。新旧部署共用 guard 锁；工作组与借用组的资源所有权仍独立。第二轮重建三源 CoT，五源 133,654 条 QA 不变；经内容、顺序、媒体、Base、训练配方和实现校验后复用第一轮 Instruct 对照，AoTD 从 Base 重新训练。第二轮已启动；生产中断/恢复观察见 [启动验收](../reproduction/evidence/full_v2_startup.json)，开发 smoke 与重载实测见 [验证结果](CONSTRUCTION_V2_VALIDATION.md)。
+
+The second experiment repairs tool contracts, boolean matching, function completion, question-conditioned visual evidence, choice-aware transfer and trace-aware judging. Four-way execution and scoped keepalive recovery remain enabled. The development pilot improves from 13 to 83 accepted rationales but was used for prompt iteration and still contains teacher/judge errors. All first-run artifacts remain intact; only a verified identical QA-only control may be reused, while AoTD starts again from Base. See the linked development note for limitations and the validation evidence for measured checks.
+
+---
+
+# 2026-11-10：五源完整运行结束
+
+两轮训练和四组完整 val 评测已完成，退出码 0，汇总 PASS，工作组保活已恢复。开发实现与验证见[独立开发报告](FULL_RUN_DEVELOPMENT_20261110.md)，最终指标与限制见[独立结果报告](FULL_RUN_RESULTS_20261110.md)。AoTD 70.64%，Instruct 70.60%，作者权重 77.62%；流程成功不等于论文指标复现成功。以下内容为按时间保留的历史记录，其中“尚未完成”指对应记录时点。
+
+---
+
+# 2026-11-09：后续阶段并行与独立借卡
+
+审计发现转换、筛选均为单卡逐条处理，四组评测依次执行；训练已经是四卡分布式，两个实验依次使用完整四卡。现将转换与筛选接入同一个有界、多进程、单写者的持久化调度器；四组评测每卡一个模型并行，仍各自保留逐题 journal。训练协议、有效 batch 48、两个训练目标与 checkpoint 逻辑不变。
+
+真实对照：64 条转换结果逐条一致，warm 时间 218.38 → 73.93 秒（2.95 倍）；1,024 条筛选判定全部一致，60.59 → 22.79 秒（2.66 倍）。小样本的总耗时受加载影响，原始数据同时记录 wall/warm 时间。转换、筛选分别从 32 条真实持久记录恢复，只新增剩下的 32 条，旧字节前缀保留，结果与对照一致。两份已存在的评测模型各跑 8 条真实问题，并验证重复启动跳过完成结果；学生模型尚未训练，因此不把这项 smoke 写成四份最终模型的完整评测。
+
+将共享保活 supervisor 拆成两个独立组。`keepalive_guard --gpus` 只验证、暂停、恢复对应组，拒绝跨组 supervisor；工作组和借用组使用不同锁与清理标签。`run_spare_task.sh` 提供 4–7 卡借用入口。实际借卡任务正常完成、错误码 17 退出，以及借卡 guard 被 SIGKILL 后，后四卡恢复保活；主任务 PID 和四个工作 GPU 进程保持不变，STAR 仍从 22,027 推进到 22,048 条。阶段切换期间也实测了借卡任务继续执行。CPU、内存与磁盘仍为共享资源，详见 [借卡约束与命令](SPARE_GPU_TASKS.md)。
+
+77 项回归测试通过。正式任务已从原断点恢复并继续运行，运行级错误为 0。进度现在在加载期间显示已恢复数量，ETA 不再把冷加载计入样本处理速率。
+
+测量证据：[转换](../reproduction/evidence/parallel_text_benchmark.json)、[筛选](../reproduction/evidence/parallel_filter_benchmark.json)、[真实部分断点恢复](../reproduction/evidence/parallel_text_resume.json)、[评测 smoke](../reproduction/evidence/parallel_evaluation_smoke.json)、[借卡隔离](../reproduction/evidence/spare_gpu_isolation.json)、[估时采样](../reproduction/evidence/parallel_eta_snapshot.json)。估时采样时 STAR 为 22,232/45,731，最近 128 条约 1.49 秒/完成记录；AGQA 随机 64 条约 1.28 秒/完成记录。两者点估计约 9.7 小时、8.9 小时；题型与视频不同，不能把抽样吞吐当作完成时间保证。全量训练和全量评测尚未结束。
+
+---
+
+# 2026-11-09：四卡独立样本并行
+
+全量入口默认 `AOTD_CONSTRUCTION_WORKERS=4`，以 spawn 启动四个隔离进程，每卡常驻完整教师栈、同时处理一条样本。主进程负责唯一 journal 写入，保留逐条 fsync、运行级错误停机和保活恢复机制。教师、提示词、贪心解码、拒绝与质量筛选规则未变。并行改变完成顺序，不改变样本 ID；最多四条未提交任务会在中断后重做。
+
+已完成 74 项回归（其中 5 项离线 processor 测试单独配置模型路径执行）。新增测试覆盖乱序完成、唯一落盘、关闭后续跑、子进程异常及空队列快路径。
+
+真实对照使用相同 40 条 QA（32 条 STAR、8 条 AGQA），串行与并行均得到 16 条执行成功、24 条拒绝、0 条运行级错误、2 条答案正确。逐条比较生成程序、答案、状态与正确性，没有差异。模型 ready 至最后提交耗时 227.71 秒 → 71.95 秒，吞吐约 **3.16 倍**；包含冷加载的 manifest 至最后提交耗时 264.97 秒 → 244.51 秒，短任务总耗时仅约 **1.08 倍**。这些是该测试集测量结果，不代表整个数据集恒定加速比，也不是最终 CoT 接受率。
+
+暂停时 NExT-QA 已完成全部 34,132 条构建，STAR 已持久化 21,612 条。保留 journal 前缀 SHA256，并通过精确代码指纹白名单迁移恢复。完整机制见 [并行构建说明](PARALLEL_CONSTRUCTION.md)，对照原始汇总见 [测量记录](../reproduction/evidence/parallel_construction_benchmark.json)。正式全量实际推进 47 条至 21,659 条后，以 SIGTERM 停止 guard；退出码 143，原 8 个保活 worker 均恢复。相同全量命令再次启动，跳过全部已完成记录，继续新增 53 条至 21,712 条。两次 journal 前缀 SHA256 校验通过、无重复终态记录、运行级错误为 0；合计新增 100 条后保留任务运行。见 [恢复证据](../reproduction/evidence/parallel_construction_restart.json)。这验证了本轮测试范围内的恢复机制，不等于宣称全量训练评测已经完成。
+
+---
+
 # 开发记录：制数边界修复与断点恢复
 
 日期：2026-11-07。保留五源协议、133,654 条有效 QA、4 张工作卡与 4 张保活卡、默认 30 秒进度间隔。本次不修改数据来源、训练目标或解释筛选标准。

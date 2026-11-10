@@ -1,0 +1,31 @@
+{
+  "four_transfer": {
+    "total_seconds": 138.732860077871,
+    "warm_seconds": 73.9313530921936,
+    "rows": 64,
+    "sum_sample_seconds": 266.449
+  },
+  "four_filter": {
+    "total_seconds": 32.17047565593384,
+    "warm_seconds": 4.434783220291138,
+    "rows": 64,
+    "sum_sample_seconds": 9.455
+  },
+  "serial_transfer": {
+    "total_seconds": 238.57477690908127,
+    "warm_seconds": 218.3804144859314,
+    "rows": 64,
+    "sum_sample_seconds": 218.07
+  },
+  "serial_filter": {
+    "total_seconds": 28.135041468776762,
+    "warm_seconds": 7.266905307769775,
+    "rows": 64,
+    "sum_sample_seconds": 6.959
+  },
+  "transfer_differences": [],
+  "transfer_warm_speedup": 2.9538268319478402,
+  "filter_differences": [],
+  "filter_warm_speedup": 1.6386156767529017,
+  "status": "PASS"
+}

@@ -22,7 +22,8 @@ def main():
     all_ids = set(subprocess.check_output(['nvidia-smi', '--query-gpu=index', '--format=csv,noheader,nounits'], text=True, timeout=15).split())
     train = os.environ.get('AOTD_TRAIN_GPUS', '0,1,2,3').split(',')
     eval_gpu = os.environ.get('AOTD_EVAL_GPU', '0')
-    work = [eval_gpu] if a.mode == 'eval-only' else train
+    independent = os.environ.get('AOTD_INDEPENDENT_SPARE_KEEPALIVE') == '1'
+    work = [eval_gpu] if a.mode == 'eval-only' and not independent else train
     if not work or len(set(work)) != len(work) or any(x not in all_ids for x in work):
         raise ValueError(f'invalid AoTD GPUs: {work}')
     if eval_gpu not in work:
@@ -70,7 +71,7 @@ def main():
         # workers in separate sessions, before restoring the original workload.
     try:
         with log_path.open('w') as log:
-            if spare:
+            if spare and not independent:
                 env = dict(os.environ, CUDA_VISIBLE_DEVICES=','.join(spare),
                            KEEP_ALIVE_GPUS=','.join(map(str, range(len(spare)))),
                            PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1')
@@ -108,7 +109,7 @@ def main():
                     raise RuntimeError('spare GPU keep-alive exited during AoTD')
                 if time.monotonic()-last_progress>=30:
                     print(f'[phase progress] elapsed={time.monotonic()-started:.1f}s '
-                          f'work_devices={len(work)} keepalive_devices={len(spare)}',flush=True)
+                          f'work_devices={len(work)} spare_group={"independent/borrowable" if independent else len(spare)}',flush=True)
                     last_progress=time.monotonic()
                 time.sleep(0.5)
             state['task_exit_code'] = task.returncode
@@ -118,7 +119,7 @@ def main():
         stop(sidecar)
         state['status'] = 'temporary_keepalive_stopped'
         record()
-        print('[keep-alive] temporary workers stopped; outer guard will restore original eight-GPU workload', flush=True)
+        print('[keep-alive] phase stopped; outer guard restores its owned keepalive group', flush=True)
 
 
 if __name__ == '__main__':

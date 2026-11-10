@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "scope": "development validation; not full-run results",
+  "sampling": {
+    "rule": "lowest SHA256(contract-v2-seed42:<sample_id>) per source",
+    "training_split": true,
+    "used_for_prompt_iteration": true,
+    "unbiased_generalization_test": false
+  },
+  "sources": {
+    "AGQA": {
+      "questions": 256,
+      "baseline_correct": 9,
+      "baseline_accepted": 3,
+      "revised_executed": 215,
+      "revised_rejected": 41,
+      "revised_correct": 52,
+      "revised_accepted": 35
+    },
+    "NExT-QA": {
+      "questions": 64,
+      "baseline_correct": 15,
+      "baseline_accepted": 7,
+      "revised_executed": 61,
+      "revised_rejected": 3,
+      "revised_correct": 36,
+      "revised_accepted": 33
+    },
+    "STAR": {
+      "questions": 64,
+      "baseline_correct": 12,
+      "baseline_accepted": 3,
+      "revised_executed": 50,
+      "revised_rejected": 14,
+      "revised_correct": 25,
+      "revised_accepted": 15
+    }
+  },
+  "total": {
+    "questions": 384,
+    "correct": 113,
+    "accepted": 83,
+    "operational_errors": 0
+  },
+  "rejected_candidates": [
+    {
+      "candidate": "prompt-only",
+      "processed": 40,
+      "accepted_programs": 0
+    },
+    {
+      "candidate": "function-prefix",
+      "processed": 384,
+      "correct": 86,
+      "accepted_cot": 3
+    },
+    {
+      "candidate": "query-conditioned visual evidence",
+      "processed": 384,
+      "correct": 113,
+      "accepted_cot": 75
+    },
+    {
+      "candidate": "choice-aware text",
+      "processed": 384,
+      "correct": 113,
+      "accepted_cot": 83,
+      "promotion": "rejected due to answer/trace inconsistency in accepted rationales"
+    }
+  ],
+  "final_candidate": {
+    "construction": "query-conditioned evidence",
+    "transfer": "choice-aware text",
+    "filter": "trace and program-answer aware",
+    "replayed_stages": [
+      "filter",
+      "export"
+    ],
+    "unchanged_input_sha256": {
+      "construct.jsonl": "7d889cdfaeef3f0c013a315459c77e9f9fecaf5ba8b1b3cf2f6bf07756bc39fa",
+      "transfer.jsonl": "eab9940dbd60ec881dbc1758c682d0c335d0b659504e26701f551260062ceb58"
+    }
+  },
+  "cpu_regression": {
+    "tests": 88,
+    "passed": 88,
+    "seconds": 12.037
+  },
+  "gpu_training": {
+    "global_step": 2,
+    "finite_loss": true,
+    "step_losses": [
+      15.7148,
+      15.6562
+    ],
+    "train_runtime": 100.2645,
+    "runtime_backend": {
+      "distributed_type": "DistributedType.DEEPSPEED",
+      "model_class": "deepspeed.runtime.engine.DeepSpeedEngine",
+      "world_size": 4,
+      "zero_stage": 2,
+      "bfloat16_enabled": true,
+      "optimizer_class": "deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer"
+    },
+    "world_size": 4,
+    "effective_batch_size": 48,
+    "target_steps": 2,
+    "periodic_checkpoint_steps": 2
+  },
+  "checkpoint": {
+    "committed_marker_present": true,
+    "step": 2
+  },
+  "final_export": {
+    "completion_marker_present": true,
+    "global_step": 2
+  },
+  "reloaded_evaluation": {
+    "summary": {
+      "total": 4,
+      "correct": 2,
+      "accuracy": 0.5,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 3,
+        "correct": 2,
+        "accuracy": 0.6666666666666666
+      },
+      "T": {
+        "total": 1,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "D": {
+        "total": 0,
+        "correct": 0,
+        "accuracy": null
+      }
+    },
+    "smoke_only": true
+  },
+  "candidate_two_interrupt_resume": {
+    "bytes": 220699,
+    "sha256": "8d87b0af54cff52b55dc76c40e5c7a5c0ec4b07ca626999fe5f6ee73815f46ec",
+    "lines": 130,
+    "prefix_preserved": true,
+    "all_eight_workers_restored": true,
+    "lines_after_stop": 130,
+    "post_stop_bytes": 220699,
+    "post_stop_sha256": "8d87b0af54cff52b55dc76c40e5c7a5c0ec4b07ca626999fe5f6ee73815f46ec"
+  },
+  "instruct_control_reuse_preflight": {
+    "status": "PASS",
+    "trained_in_this_run": false,
+    "semantic_qa_identical": true,
+    "base_and_recipe_identical": true,
+    "training_implementation_identical": true,
+    "global_step": 2785
+  },
+  "trace_review": {
+    "known_bad_candidates_rejected": {
+      "AGQA:9JZCC-7681": false,
+      "STAR:Prediction_T1_724": false
+    },
+    "additional_accepted_traces_reviewed": 9,
+    "remaining_limitations": [
+      "Visual observations may hallucinate or contradict one another.",
+      "Some accepted rationales omit temporal prerequisites or infer unsupported details; the LLM judge is not a correctness certificate.",
+      "No frame-by-frame human audit of the entire pilot."
+    ],
+    "semantic_quality_certified": false
+  },
+  "artifact_sha256": {
+    "pilot_v3/construct.jsonl": "7d889cdfaeef3f0c013a315459c77e9f9fecaf5ba8b1b3cf2f6bf07756bc39fa",
+    "pilot_v5/filter.jsonl": "9058e2f95c538d7ff89004586638e1e9e56c195143f6f14f441a6b15c6973d7d",
+    "pilot_v5/cot_filtered.jsonl": "e71aa21b3b50be4274982cf80190f6d794bf12f54b8cf245d5a74b615ad6039b",
+    "train_smoke_v5/training_metrics.json": "30450a41112481c99724bff55163509e6fccea436c8ad7752c101e736ce58fb9",
+    "train_smoke_v5/checkpoint-2/aotd_checkpoint.json": "c49b7ff72013edc630fd360a304a6f5d064cac0ce09f267734d9b9b9a9ce4891",
+    "trained_val_smoke_v5.json": "54c52eab8bc2e313972cb0e6a069bb69b4d7c93191075ab155e705ddfa59f9fd",
+    "final-tests-v5.log": "80d44005d43f18dce56ff032ff2c6a13ed2602dc12dfb920a2910a9ce11bb47b"
+  }
+}
