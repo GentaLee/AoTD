@@ -1,8 +1,8 @@
 # 第二轮状态 / Second experiment status
 
-2026-11-11：正在完成修复后的全链路验证并准备新一轮全量；详见 [第二轮开发说明](CONSTRUCTION_V2.md)。三源 CoT 将重新构建，原 QA 和第一轮结果保留。四路并行、独立借卡保活、断点续接保持启用。下文所有 4,399 CoT、70.64% 等完整指标均是第一轮结果，不代表第二轮已完成。
+2026-11-11：修复后的全链路验证通过，第二轮全量已启动；详见 [第二轮开发说明](CONSTRUCTION_V2.md)。三源 CoT 正在重新构建，原 QA 和第一轮结果保留。已实际中断并恢复同一全量运行，65→225 条，恢复后连续观察 180 秒，无重复 ID、运行错误，旧 journal 前缀不变；空闲时原八卡保活恢复，续跑时后四卡保持独立。四路并行、独立借卡保活、断点续接保持启用。下文所有 4,399 CoT、70.64% 等完整指标均是第一轮结果，不代表第二轮已完成。
 
-The repaired second experiment is completing validation before full startup. Its data and outputs are isolated from the first run. All complete metrics below belong to the first experiment, not the new run.
+The repaired second experiment passed end-to-end smoke validation and is now running the full pipeline. A controlled production interruption restored all eight original keepalive workers; the same run resumed from 65 to 225 records with an unchanged journal prefix, no duplicate IDs or operational errors, and 180 seconds of observed progress. The spare group remained independent. Its data and outputs are isolated from the first run. All complete metrics below belong to the first experiment, not the new run.
 
 ---
 

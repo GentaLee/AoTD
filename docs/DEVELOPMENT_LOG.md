@@ -1,10 +1,10 @@
-# 2026-11-11：修复制数契约并准备第二轮全量 / Repair construction and prepare a second full run
+# 2026-11-11：修复制数契约并启动第二轮全量 / Repair construction and start a second full run
 
 AGQA 低产量审计定位到工具返回类型描述、布尔答案匹配、程序生成格式和视觉摘要忽略问题等缺陷。新版本同时修复选择题转换缺少选项文本，以及筛选器缺少轨迹/程序答案的上下文。完整设计、迭代失败记录与边界见 [第二轮开发说明](CONSTRUCTION_V2.md)。第一轮产物全部保留。
 
 固定开发子集 384 条：正确程序答案从 36 增至 113，最终 CoT 从 13 增至 83（AGQA 3→35，NExT-QA 7→33，STAR 3→15）。该子集参与了提示词迭代，不是独立测试集；仍发现教师描述与语义筛选的残余误判，不把数量提升当作最终效果证明。
 
-保留四 worker 制数/转换/筛选、四 rank 训练、四模型并行评测、逐条 journal 和完整训练 checkpoint。新旧部署共用 guard 锁；工作组与借用组的资源所有权仍独立。第二轮重建三源 CoT，五源 133,654 条 QA 不变；经内容、顺序、媒体、Base、训练配方和实现校验后复用第一轮 Instruct 对照，AoTD 从 Base 重新训练。生产状态与中断/恢复观察将在启动后追加。
+保留四 worker 制数/转换/筛选、四 rank 训练、四模型并行评测、逐条 journal 和完整训练 checkpoint。新旧部署共用 guard 锁；工作组与借用组的资源所有权仍独立。第二轮重建三源 CoT，五源 133,654 条 QA 不变；经内容、顺序、媒体、Base、训练配方和实现校验后复用第一轮 Instruct 对照，AoTD 从 Base 重新训练。第二轮已启动；生产中断/恢复观察见 [启动验收](../reproduction/evidence/full_v2_startup.json)，开发 smoke 与重载实测见 [验证结果](CONSTRUCTION_V2_VALIDATION.md)。
 
 The second experiment repairs tool contracts, boolean matching, function completion, question-conditioned visual evidence, choice-aware transfer and trace-aware judging. Four-way execution and scoped keepalive recovery remain enabled. The development pilot improves from 13 to 83 accepted rationales but was used for prompt iteration and still contains teacher/judge errors. All first-run artifacts remain intact; only a verified identical QA-only control may be reused, while AoTD starts again from Base. See the linked development note for limitations and the validation evidence for measured checks.
 
