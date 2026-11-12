@@ -1,6 +1,6 @@
 # 第二轮完整结果 / Second full-run results
 
-完成时间：2026-11-13 00:06:18 Asia/Shanghai（2026-11-12 16:06:18 UTC）。全流程 complete、exit 0、PASS，日志确认工作组保活恢复。第一轮也完成了完整训练评测；其问题是产量低、效果提升很小，不是最终运行失败。
+完成时间：2026-11-13 00:06:18 UTC+08:00（2026-11-12 16:06:18 UTC）。全流程 complete、exit 0、PASS，日志确认工作组保活恢复。第一轮也完成了完整训练评测；其问题是产量低、效果提升很小，不是最终运行失败。
 
 Completed with exit 0 and PASS. Work-group keepalive restoration is recorded in the completion log. The first run also completed; its shortcomings were low rationale yield and weak effectiveness, not a failed final execution.
 
