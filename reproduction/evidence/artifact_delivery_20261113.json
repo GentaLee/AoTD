@@ -1,0 +1,45 @@
+{
+  "archive": "aotd-v2-data-audit-20261113.tar.gz",
+  "bytes": 155610609,
+  "sha256": "80bb1f9259266f49069b6439602b0bcefd897a420c6c8416c8c53dcbb1120d99",
+  "files": 104947,
+  "source_bytes": 893325538,
+  "published_bytes": 872841713,
+  "sanitized_files": 49,
+  "archive_verified": true,
+  "models_and_checkpoints_included": false,
+  "content_verification": {
+    "status": "PASS",
+    "archive_data_counts": {
+      "cot_filtered.jsonl": 32042,
+      "qa_normalized.jsonl": 133654,
+      "answering.json": 133654,
+      "reasoning.json": 32042
+    },
+    "archive_evaluations": {
+      "aotd_val_full.json": {
+        "total": 4996,
+        "correct": 3547
+      },
+      "author_val_full.json": {
+        "total": 4996,
+        "correct": 3878
+      },
+      "base_val_full.json": {
+        "total": 4996,
+        "correct": 3121
+      },
+      "instruct_val_full.json": {
+        "total": 4996,
+        "correct": 3527
+      }
+    }
+  },
+  "release_url": "https://github.com/GentaLee/AoTD/releases/tag/aotd-v2-data-audit-20261113",
+  "excluded_by_request": [
+    "AoTD final model",
+    "Instruct model",
+    "checkpoint-3400",
+    "checkpoint-3452"
+  ]
+}

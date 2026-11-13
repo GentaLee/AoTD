@@ -44,6 +44,6 @@ Audit verified unique full coverage, recomputed totals/categories/invalid output
 - [开发与变更 / Development changes](CONSTRUCTION_V2.md)
 - [Smoke 与恢复验收 / Smoke and resume](CONSTRUCTION_V2_VALIDATION.md)
 
-部署侧保留 `results/<run>/aotd_s42/` 最终模型、checkpoint-3400/3452、四份 `*_val_full.json`、`full_summary.json`、`construction_quality_gate.json`、`instruct_reuse.json` 和 run.log。完整制数 journal 与筛选产物保留在 `data/construction/<source>/`，训练池在 `data/five_source_train/`。旧产物未覆盖。模型、视频、完整教师轨迹和私有配置不上传 Git；仓库保存审计摘要和可复核预测对照。
+部署侧保留 `results/<run>/aotd_s42/` 最终模型、checkpoint-3400/3452、四份 `*_val_full.json`、`full_summary.json`、`construction_quality_gate.json`、`instruct_reuse.json` 和 run.log。完整制数 journal 与筛选产物保留在 `data/construction/<source>/`，训练池在 `data/five_source_train/`。旧产物未覆盖。完整数据、教师轨迹、评测输出和日志已纳入 [Release 交付](ARTIFACT_DELIVERY_20261113.md)，不挤入 Git 历史。按要求不提交 AoTD/Instruct 模型与两个 checkpoint；视频及私有配置不在本次交付范围。
 
-Deployment artifacts retain final weights, the last two full checkpoints, evaluation outputs, integrity/reuse reports and logs; construction journals and training data remain on persistent storage. Old artifacts are preserved. Git contains sanitized audit data and prediction comparisons, not large weights, videos, full teacher traces or private configuration.
+Deployment artifacts retain final weights, the last two full checkpoints, evaluation outputs, integrity/reuse reports and logs; construction journals and training data remain on persistent storage. Old artifacts are preserved. Git contains sanitized audit evidence and predictions; the linked release additionally delivers full data, teacher traces, evaluation outputs and logs. AoTD/Instruct weights and both checkpoints are excluded as requested; videos/private configuration are outside this delivery.

@@ -15,7 +15,8 @@ The full engineering pipeline completed, but this is not an exact paper reproduc
 | 第二轮开发与验收 / V2 implementation and validation | [开发](CONSTRUCTION_V2.md), [验收](CONSTRUCTION_V2_VALIDATION.md) | 修复、局限、实测恢复 / Repairs, limitations, tested resume |
 | 第一轮结果 / V1 results | [第一轮报告](FULL_RUN_RESULTS_20261110.md) | 历史完成结果 / Historical completed run |
 | 第二轮结果与逐题对照 / V2 results and predictions | [结果](FULL_V2_RESULTS_20261113.md), [CSV](../reproduction/evidence/full_v2_predictions.csv) | 4,996 个 ID，标签、视频哈希及五列预测 / IDs, labels, media hashes, five prediction columns |
-| 完整运行产物 / Full runtime artifacts | 部署卷上的 `results/<run>/` 和 `data/` | 保留但不公开下载 / Retained, not publicly downloadable |
+| 数据、轨迹、评测与日志 / Data, traces, evaluations and logs | [Release 与校验说明](ARTIFACT_DELIVERY_20261113.md) | 完整交付，私有信息脱敏 / Full delivery with private identifiers sanitized |
+| 模型与训练 checkpoint / Weights and training checkpoints | 部署卷 / Deployment storage | 按要求不提交 / Excluded as requested |
 
 ## PR 依赖 / PR dependencies
 
@@ -66,6 +67,6 @@ The launcher prints its result directory. Follow its run.log with tail; Ctrl-C e
 
 ## 产物边界 / Artifact availability
 
-部署端保存最终模型 `aotd_s42/`、完整 `checkpoint-3400`/`checkpoint-3452`、训练完成标记、四份 `*_val_full.json`、`full_summary.json`、`run_state.json`、`run.log`、质量门控与对照复用检查。制数 journal 与训练池在 `data/`。第一轮结果保留。模型、视频、完整轨迹、环境和私有配置不提交 Git，当前没有为这些产物提供公共下载链接。
+部署端保存最终模型 `aotd_s42/`、完整 `checkpoint-3400`/`checkpoint-3452`、训练完成标记、四份 `*_val_full.json`、`full_summary.json`、`run_state.json`、`run.log`、质量门控与对照复用检查。制数 journal 与训练池在 `data/`。第一轮结果保留。完整数据、轨迹、评测与日志通过 [Release](ARTIFACT_DELIVERY_20261113.md) 交付。模型与两个 checkpoint 按要求不提交；视频、环境与私有配置仍由使用者单独准备。
 
-Deployment storage retains weights, complete checkpoints, completion markers, evaluations, summaries, logs, gate/reuse reports, construction journals and training data. First-run artifacts are preserved. Large/private assets are not in Git and no public artifact download is currently provided. The public CSV supports recomputing reported prediction metrics, not reproducing training without separately provisioned assets.
+Deployment storage retains weights, complete checkpoints, completion markers, evaluations, summaries, logs, gate/reuse reports, construction journals and training data. First-run artifacts are preserved. Full data, traces, evaluations and logs are provided as release assets. Model weights and both training checkpoints are explicitly excluded. External media/models/environments still require separate provisioning; see the delivery guide for path remapping and verification.

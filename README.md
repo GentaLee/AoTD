@@ -8,6 +8,8 @@
 
 详见[当前状态、实测边界和资源说明](docs/REPRODUCTION_STATUS.md)、[验证证据](reproduction/evidence/verified_status.json)与[下载清单](downloads/README.md)。后续验证结果以证据文件的时间和字段为准。
 
+完整 QA/CoT、训练输入、三源轨迹、评测输出和日志通过 [数据与审核 Release](https://github.com/GentaLee/AoTD/releases/tag/aotd-v2-data-audit-20261113) 交付；下载与校验见[产物说明](docs/ARTIFACT_DELIVERY_20261113.md)。按要求不提交 AoTD/Instruct 模型及两个 checkpoint。
+
 ## 一键运行
 
 在已经配好离线资源的持久化挂载目录中执行：
