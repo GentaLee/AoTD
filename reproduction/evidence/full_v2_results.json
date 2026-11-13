@@ -1,0 +1,137 @@
+{
+  "status": "PASS",
+  "completed_utc": "2026-11-12T16:06:18.181399+00:00",
+  "results": {
+    "author": {
+      "total": 4996,
+      "correct": 3878,
+      "accuracy": 0.7762209767814251,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 2607,
+        "correct": 2019,
+        "accuracy": 0.7744533947065593
+      },
+      "T": {
+        "total": 1612,
+        "correct": 1194,
+        "accuracy": 0.7406947890818859
+      },
+      "D": {
+        "total": 777,
+        "correct": 665,
+        "accuracy": 0.8558558558558559
+      }
+    },
+    "base": {
+      "total": 4996,
+      "correct": 3121,
+      "accuracy": 0.6246997598078463,
+      "invalid": 12,
+      "invalid_rate": 0.0024019215372297837,
+      "C": {
+        "total": 2607,
+        "correct": 1612,
+        "accuracy": 0.6183352512466437
+      },
+      "T": {
+        "total": 1612,
+        "correct": 937,
+        "accuracy": 0.5812655086848635
+      },
+      "D": {
+        "total": 777,
+        "correct": 572,
+        "accuracy": 0.7361647361647362
+      }
+    },
+    "instruct": {
+      "total": 4996,
+      "correct": 3527,
+      "accuracy": 0.705964771817454,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 2607,
+        "correct": 1856,
+        "accuracy": 0.7119294207901803
+      },
+      "T": {
+        "total": 1612,
+        "correct": 1072,
+        "accuracy": 0.6650124069478908
+      },
+      "D": {
+        "total": 777,
+        "correct": 599,
+        "accuracy": 0.7709137709137709
+      }
+    },
+    "aotd": {
+      "total": 4996,
+      "correct": 3547,
+      "accuracy": 0.7099679743795037,
+      "invalid": 0,
+      "invalid_rate": 0.0,
+      "C": {
+        "total": 2607,
+        "correct": 1858,
+        "accuracy": 0.7126965861143076
+      },
+      "T": {
+        "total": 1612,
+        "correct": 1082,
+        "accuracy": 0.6712158808933002
+      },
+      "D": {
+        "total": 777,
+        "correct": 607,
+        "accuracy": 0.7812097812097812
+      }
+    }
+  },
+  "paired": {
+    "instruct": {
+      "wins": 271,
+      "losses": 251,
+      "net": 20
+    },
+    "aotd_v1": {
+      "wins": 264,
+      "losses": 246,
+      "net": 18
+    }
+  },
+  "qa_records": 133654,
+  "cot_v1": {
+    "nextqa": 2205,
+    "star": 1814,
+    "agqa": 380
+  },
+  "cot_v2": {
+    "nextqa": 16515,
+    "star": 12256,
+    "agqa": 3271
+  },
+  "training": {
+    "steps": 3452,
+    "seconds": 38646.2998,
+    "finite_loss": true,
+    "checkpoint_committed": true,
+    "export_file_sizes_verified": true
+  },
+  "audit": {
+    "unique_questions": 4996,
+    "labels_and_video_hashes_match": true,
+    "category_metrics_recomputed": true,
+    "large_weight_shards_rehashed": false
+  },
+  "keepalive_restored_at_completion": true,
+  "artifact_sha256": {
+    "base_val_full.json": "c61a6c966ce3f6c12a6b3672d1c042b94f9bf41f16306bc5c227c7301293cfee",
+    "aotd_val_full.json": "400282bb0c2f54a6fbb6b7245d183d8e58d13c78893afb604b0df4be6a311f3b",
+    "author_val_full.json": "304b289056a4495bd10e9e26b6d9defab87e9ff50f7b647824b0b7f5c14df1e1",
+    "instruct_val_full.json": "282a0f38be83a1bb0ac9eac9b8fdfa12acc125ca05bdc3ae5204eca8fd787d99"
+  }
+}

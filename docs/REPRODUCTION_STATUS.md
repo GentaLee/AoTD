@@ -1,8 +1,12 @@
-# 第二轮状态 / Second experiment status
+# 最新状态 / Latest status
 
-2026-11-11：修复后的全链路验证通过，第二轮全量已启动；详见 [第二轮开发说明](CONSTRUCTION_V2.md)。三源 CoT 正在重新构建，原 QA 和第一轮结果保留。已实际中断并恢复同一全量运行，65→225 条，恢复后连续观察 180 秒，无重复 ID、运行错误，旧 journal 前缀不变；空闲时原八卡保活恢复，续跑时后四卡保持独立。四路并行、独立借卡保活、断点续接保持启用。下文所有 4,399 CoT、70.64% 等完整指标均是第一轮结果，不代表第二轮已完成。
+2026-11-13：第二轮全量已完成，`complete` / exit 0 / `PASS`。133,654 条 QA、32,042 条 CoT；AoTD 训练 3,452 步，四组各完整评测 4,996 题。AoTD 71.00%，Instruct 70.60%，作者模型 77.62%。Instruct 为经一致性校验复用的第一轮对照。完成日志确认工作组保活恢复，独立借卡组不受影响。
 
-The repaired second experiment passed end-to-end smoke validation and is now running the full pipeline. A controlled production interruption restored all eight original keepalive workers; the same run resumed from 65 to 225 records with an unchanged journal prefix, no duplicate IDs or operational errors, and 180 seconds of observed progress. The spare group remained independent. Its data and outputs are isolated from the first run. All complete metrics below belong to the first experiment, not the new run.
+The second full run completed successfully. It produced 32,042 rationales, trained AoTD for 3,452 updates and evaluated all four models on 4,996 questions each. AoTD achieved 71.00%, versus 70.60% for the validated reused Instruct control and 77.62% for the author checkpoint. Completion-time logs confirm work-group keepalive restoration.
+
+最新数据及局限见[第二轮结果](FULL_V2_RESULTS_20261113.md)，操作与交付范围见[复现索引](REPRODUCTION_HANDOFF.md)。下文是第一轮及早期 smoke 的历史记录，其中“尚无”“当前仍在”等描述均指当时状态，不代表第二轮状态。
+
+See the [latest results](FULL_V2_RESULTS_20261113.md) and [reproduction handoff](REPRODUCTION_HANDOFF.md). Everything below is historical first-run/smoke evidence; pending-work statements describe those observation times.
 
 ---
 
@@ -10,7 +14,7 @@ The repaired second experiment passed end-to-end smoke validation and is now run
 
 第一轮状态日期：2026-11-10。第一轮完整运行已结束，结果以[结果报告](FULL_RUN_RESULTS_20261110.md)为准，开发汇总见[开发报告](FULL_RUN_DEVELOPMENT_20261110.md)。下方旧 smoke 与故障观察保留作历史证据。此文区分已经验证的行为、入口具备的功能和仍需完成的全量实验。部署地址、站点名称、设备型号及凭证不保存到仓库，软件版本可以记录。
 
-**当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、两轮正式一轮训练和四组完整 val 评测均已完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
+**当前范围排除 ANetQA，使用 NExT-QA、STAR、AGQA、CLEVRER、EgoQA。教师模型齐全，真实 Agent 小样本链路、四卡有效 batch 48 短训练及 checkpoint 保存/重载已经通过；五源完整 CoT、Instruct/AoTD 两次各一轮训练和四组完整 val 评测均已完成。** EgoQA 已完成全部 7,813 个标注视频的 32 帧解码审计：7,791 个有效、16 个缺失、6 个无法解码。按明确授权的固定清单排除这 22 条媒体异常记录，原始标注保持不变；当前五源可用 QA 合计 133,654 条。
 
 **第一轮最终状态：** `complete` / exit 0 / `PASS`；133,654 条 QA、4,399 条 CoT，Instruct 2,785 步、AoTD 2,877 步；四组各完成 4,996 题。Base 62.47%、Instruct 70.60%、AoTD 70.64%、作者权重 77.62%。八卡保活已恢复。
 
